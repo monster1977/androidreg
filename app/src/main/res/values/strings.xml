@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Авторегистратор</string>
+
+    <!-- Главный экран -->
+    <string name="status_ready">Камера готова</string>
+    <string name="status_recording">● ИДЁТ ЗАПИСЬ</string>
+    <string name="status_waiting_gesture">Жду жест «V»</string>
+    <string name="status_preparing">Подготовка камеры…</string>
+    <string name="status_no_permission">Нет разрешения на камеру</string>
+    <string name="status_error">Ошибка камеры</string>
+    <string name="timer_idle">00:00</string>
+    <string name="action_record">Начать запись</string>
+    <string name="action_stop_record">Остановить запись</string>
+    <string name="action_gallery">Записи</string>
+    <string name="action_switch_camera">Сменить камеру</string>
+    <string name="action_settings">Настройки</string>
+    <string name="action_orientation">Развернуть экран (180°)</string>
+    <string name="action_autostart">Запись при запуске</string>
+    <string name="menu_state_on">включено</string>
+    <string name="menu_state_off">выключено</string>
+    <string name="menu_state_pair">%1$s — %2$s</string>
+    <string name="orientation_normal">Обычный ландшафт: камера слева</string>
+    <string name="orientation_reversed">Обратный ландшафт: камера справа</string>
+    <string name="storage_info">Занято %1$s из %2$s</string>
+    <string name="recording_started">Запись началась: %1$s</string>
+    <string name="recording_saved">Сохранено: %1$s (%2$s)</string>
+    <string name="recording_failed">Запись прервана с ошибкой</string>
+    <string name="error_no_space">Недостаточно места для записи — свободно %1$s. Старые записи нужно удалить или уменьшить лимит хранилища.</string>
+    <string name="permission_required">Для записи видео нужны разрешения на камеру и микрофон</string>
+    <string name="permission_settings">Открыть настройки</string>
+
+    <!-- Уведомление -->
+    <string name="channel_recording">Запись видео</string>
+    <string name="channel_recording_desc">Уведомление о фоновой записи регистратора</string>
+    <string name="notification_recording">Авторегистратор: идёт запись</string>
+    <string name="notification_recording_text">Видео сохраняется в память устройства</string>
+    <string name="action_stop">Стоп</string>
+
+    <!-- Галерея -->
+    <string name="title_recordings">Записи</string>
+    <string name="recordings_empty">Пока нет ни одной записи.\nВернитесь на главный экран и нажмите «Начать запись».</string>
+    <string name="recordings_summary">%1$d файлов · %2$s</string>
+    <string name="delete_title">Удалить запись?</string>
+    <string name="delete_message">Файл «%1$s» будет удалён безвозвратно.</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="deleted">Удалено: %1$s</string>
+    <string name="unknown_duration">--:--</string>
+
+    <!-- Плеер -->
+    <string name="title_playback">Просмотр</string>    <string name="action_play">Играть</string>
+    <string name="action_pause">Пауза</string>
+    <string name="action_share">Поделиться</string>
+    <string name="action_external_player">Другой плеер</string>
+    <string name="open_with">Открыть видео</string>
+    <string name="no_external_player">Подходящее приложение не найдено</string>
+    <string name="playback_error">Не удалось воспроизвести видео: %1$s</string>
+    <string name="playback_error_hint">Файл повреждён (запись прервалась) или формат не поддерживается этим плеером. Нажмите «Другой плеер» или отправьте файл на компьютер.</string>
+    <string name="share_chooser">Отправить видео</string>
+    <string name="recordings_active_hint">Идёт запись — текущий файл появится в списке после остановки.</string>
+
+    <!-- Настройки -->
+    <string name="title_settings">Настройки</string>
+    <string name="settings_quality">Качество видео</string>
+    <string name="settings_quality_hd">HD 720p</string>
+    <string name="settings_quality_fhd">Full HD 1080p</string>
+    <string name="settings_quality_uhd">4K 2160p</string>
+    <string name="settings_segment">Длина одного файла</string>
+    <string name="settings_segment_1">1 минута</string>
+    <string name="settings_segment_3">3 минуты</string>
+    <string name="settings_segment_5">5 минут</string>
+    <string name="settings_segment_10">10 минут</string>
+    <string name="settings_segment_off">Без разбиения</string>
+    <string name="settings_storage">Лимит хранилища</string>
+    <string name="settings_storage_1">1 ГБ</string>
+    <string name="settings_storage_2">2 ГБ</string>
+    <string name="settings_storage_5">5 ГБ</string>
+    <string name="settings_storage_10">10 ГБ</string>
+    <string name="settings_audio">Писать звук</string>
+    <string name="settings_audio_desc">Микрофон записывается вместе с видео</string>
+    <string name="settings_autostart">Автозапись при запуске</string>
+    <string name="settings_autostart_desc">Запись начнётся сразу после открытия приложения</string>
+    <string name="settings_save">Сохранить</string>
+    <string name="settings_saved">Настройки сохранены</string>
+    <string name="settings_storage_note">Старые файлы удаляются автоматически, когда размер записей превышает лимит.</string>
+    <string name="settings_ring">Хранить по кругу</string>
+    <string name="settings_ring_note">Самые старые записи удаляются по времени: телефон не забьётся, даже если лимит объёма большой.</string>
+    <string name="settings_ring_off">Без ограничения по времени</string>
+    <string name="settings_ring_15">Последние 15 минут</string>
+    <string name="settings_ring_30">Последние 30 минут</string>
+    <string name="settings_ring_60">Последний 1 час</string>
+    <string name="settings_ring_120">Последние 2 часа</string>
+    <string name="settings_timestamp">Дата и время на видео</string>
+    <string name="settings_timestamp_desc">Метка вжигается в кадр, поэтому останется и в сохранённом файле.</string>
+    <string name="settings_auto_bright">Автояркость в сумерках</string>
+    <string name="settings_auto_bright_desc">Камера сама повышает экспозицию, когда кадр становится тёмным — вечернее видео будет светлее.</string>
+    <string name="settings_gps">GPS-координаты и скорость</string>
+    <string name="settings_gps_desc">Показываются на кадре вместе с меткой времени. Нужно разрешение на геолокацию.</string>
+    <string name="settings_charge">Автозапись при подключении зарядки</string>
+    <string name="settings_charge_desc">Запись начнётся, как только телефон подключится к питанию.</string>
+
+    <string name="settings_stationary">Останавливать запись при стоянке</string>
+    <string name="settings_stationary_desc">Если координаты не меняются выбранное время, запись останавливается, а экран блокируется. Нужны геолокация и разрешение администратора устройства.</string>
+    <string name="settings_stationary_timeout">Нет движения дольше</string>
+    <string name="settings_lock_admin">Разрешить блокировку экрана</string>
+    <string name="settings_lock_admin_on">Блокировка экрана включена</string>
+    <string name="settings_lock_admin_desc">Android блокирует экран только с правами администратора устройства. Нажмите кнопку и подтвердите — это нужно один раз.</string>
+    <string name="device_admin_label">Блокировка экрана Dashcam</string>
+    <string name="device_admin_desc">Приложение сможет блокировать экран после остановки записи на стоянке.</string>
+    <string name="stationary_lock_unavailable">Запись остановлена, но экран не заблокирован: разрешите в Настройках</string>
+    <string name="lock_admin_unavailable">Не удалось открыть настройки администратора устройства</string>
+
+    <string name="settings_palm">Приложение по жесту «ладонь»</string>
+    <string name="settings_palm_desc">Пока запись остановлена, открытая ладонь откроет выбранное приложение. Если выбран 2ГИС — жест попросит адрес и сразу включит навигацию. «Не выбрано» — жест ничего не делает.</string>
+    <string name="settings_palm_none">Не выбрано</string>
+    <string name="settings_palm_pick">Приложение для жеста «ладонь»</string>
+
+    <string name="settings_two_gis_key">Ключ 2ГИС Geocoder</string>
+    <string name="settings_two_gis_key_desc">Нужен для голосового ввода адреса. Ключ бесплатный: dev.2gis.com → проект → Geocoder API.</string>
+    <string name="two_gis_key_empty">Ключ не задан</string>
+    <string name="two_gis_key_set">Ключ задан</string>
+    <string name="two_gis_key_title">Ключ 2ГИС Geocoder</string>
+    <string name="two_gis_key_help">Вставьте ключ Geocoder API из личного кабинета dev.2gis.com. Ключ хранится только в настройках приложения.</string>
+    <string name="two_gis_key_hint">например, 01234567-89ab-cdef-0123-456789abcdef</string>
+
+    <!-- Уведомление о зарядке -->
+    <string name="channel_power">Питание подключено</string>
+    <string name="channel_power_desc">Предложение начать запись при подключении зарядки</string>
+    <string name="power_notification_title">Питание подключено</string>
+    <string name="power_notification_text">Нажмите, чтобы начать запись</string>
+
+    <!-- Диагностика на главном экране -->
+    <string name="diagnostics_text">Метка: %1$s\nGPS: %2$s</string>
+    <string name="diagnostics_error">Наложение: %1$s</string>
+    <string name="diag_overlay_video">вжигается в видео</string>
+    <string name="diag_overlay_screen">только на экране</string>
+    <string name="diag_on">включён</string>
+    <string name="diag_off">выключен</string>
+    <string name="diag_no_permission">нет разрешения</string>
+    <string name="gps_waiting">поиск спутников…</string>
+    <string name="gps_no_permission">GPS: нет разрешения</string>
+
+    <!-- Батарея -->
+    <string name="settings_battery">Разрешить работу в фоне</string>
+    <string name="settings_battery_desc">Откройте список исключений и разрешите приложению работу без ограничений — иначе прошивка может не дать автозапись от зарядки.</string>
+    <string name="battery_settings_unavailable">Не удалось открыть настройки батареи</string>
+
+    <!-- Камера заднего хода (WiFi) -->
+    <string name="title_rear_camera">Задняя камера</string>
+    <string name="action_rear_camera">Задняя камера (WiFi)</string>
+    <string name="rear_camera_connecting">Подключение к %1$s…</string>
+    <string name="rear_camera_error">Не удалось получить поток: %1$s</string>
+    <string name="rear_camera_hint">Проверьте, что телефон подключён к Wi-Fi камеры, и адрес потока в настройках приложения.</string>
+    <string name="settings_rear_camera">Адрес потока камеры заднего хода</string>
+    <string name="settings_rear_camera_hint">MJPEG по HTTP: http://192.168.4.1/video\nRTSP: rtsp://192.168.4.1:554/stream\nТочный адрес указан в инструкции к камере.</string>
+    <string name="title_rear_settings">Настройки задней камеры</string>
+    <string name="action_rear_settings">Настройки задней камеры</string>
+    <string name="settings_rear_ssid">Имя сети (SSID) камеры</string>
+    <string name="settings_rear_ssid_hint">например, MA13M22-W-1234</string>
+    <string name="settings_rear_password">Пароль Wi-Fi камеры</string>
+    <string name="settings_rear_password_hint">обычно 12345678 или указан в инструкции</string>
+    <string name="settings_rear_autoconnect">Подключаться к камере автоматически</string>
+    <string name="settings_rear_autoconnect_desc">Android один раз спросит разрешение, дальше будет подключаться к сети камеры сам, как только она включится.</string>
+    <string name="settings_rear_autoopen">Открывать задний вид автоматически</string>
+    <string name="settings_rear_autoopen_desc">Когда телефон подключён к сети камеры, приложение сразу показывает её изображение.</string>
+    <string name="settings_rear_connect_now">Подключиться сейчас</string>
+    <string name="settings_rear_connecting">Подключение…</string>
+    <string name="settings_rear_ssid_required">Укажите имя сети камеры</string>
+    <string name="settings_rear_saved_only">Настройки сохранены. Автоподключение выключено или сеть не указана.</string>
+    <string name="settings_rear_current_wifi">Текущая сеть: %1$s</string>
+    <string name="settings_rear_no_wifi">Wi-Fi не подключён</string>
+    <string name="settings_rear_no_ssid_permission">Нет разрешения узнавать имя сети — Android скрывает SSID</string>
+    <string name="wifi_requires_android10">Автоподключение работает на Android 10 и новее</string>
+    <string name="wifi_unavailable">Wi-Fi модуль недоступен</string>
+    <string name="wifi_suggestion_ok">Сеть камеры сохранена — Android подключится к ней автоматически</string>
+    <string name="wifi_suggestion_failed">Не удалось сохранить сеть (%1$s)</string>
+    <string name="wifi_connected">Подключено</string>
+    <string name="wifi_connect_failed">Не удалось подключиться к сети камеры</string>
+
+    <!-- Жесты (фронтальная камера, дежурный режим) -->
+    <string name="gesture_wait_hint">«V» — запись, «коза» — голосовые команды</string>
+    <string name="gesture_wait_hint_palm">«V» — запись, «коза» — голос, «ладонь» — приложение</string>
+    <string name="gesture_wait_hint_2gis">«V» — запись, «коза» — голос, «ладонь» — адрес</string>
+    <string name="palm_not_set">Ладонь: приложение не выбрано в настройках</string>
+    <string name="palm_not_found">Не удалось открыть приложение</string>
+    <string name="gesture_now">Жест: %1$s</string>
+    <string name="gesture_starting">Запускаем запись…</string>
+    <string name="gesture_camera_error">Не удалось открыть фронтальную камеру</string>
+    <string name="gesture_none">—</string>
+
+    <!-- Голосовые команды (жест «коза») -->
+    <string name="voice_listening">Слушаю команду…</string>
+    <string name="voice_hearing">Говорите…</string>
+    <string name="voice_thinking">Распознаю…</string>
+    <string name="voice_commands">«Запись» · «Галерея» · «Настройки»</string>
+    <string name="voice_heard">Услышал: «%1$s»</string>
+    <string name="voice_no_match">Не расслышал команду</string>
+    <string name="voice_unknown">Не понял команду</string>
+    <string name="voice_error">Ошибка распознавания речи</string>
+    <string name="voice_unavailable">Распознавание речи недоступно</string>
+    <string name="voice_no_mic">Нет разрешения на микрофон</string>
+    <string name="voice_already_stopped">Запись уже остановлена</string>
+    <string name="voice_opening_gallery">Открываю записи…</string>
+    <string name="voice_opening_settings">Открываю настройки…</string>
+    <string name="voice_address_listening">Слушаю адрес…</string>
+    <string name="voice_address_title">Назовите адрес для 2ГИС</string>
+    <string name="voice_address_heard">Адрес: «%1$s»</string>
+    <string name="voice_address_searching">Ищу адрес…</string>
+    <string name="voice_address_starting_record">Сначала запись, потом 2ГИС…</string>
+    <string name="voice_address_not_found">Адрес не найден</string>
+    <string name="voice_address_no_match">Не расслышал адрес</string>
+    <string name="voice_address_error">Не удалось получить координаты (2ГИС)</string>
+    <string name="voice_address_bad_key">2ГИС отклонил ключ (Настройки)</string>
+    <string name="voice_address_no_key">Не задан ключ 2ГИС (Настройки)</string>
+    <string name="two_gis_missing">2ГИС не установлен</string>
+    <string name="two_gis_no_record">Запись не началась — 2ГИС не открыт</string>
+    <string name="gesture_victory">V — победа</string>
+    <string name="gesture_horns">Коза</string>
+    <string name="gesture_palm">Открытая ладонь</string>
+    <string name="gesture_fist">Кулак</string>
+
+    <!-- Общее -->
+    <string name="action_back">Назад</string>    <string name="settings_sd_card">Записывать видео на SD-карту</string>
+    <string name="settings_sd_card_found">SD-карта %1$s · свободно %2$s</string>
+    <string name="settings_sd_card_missing">SD-карта не найдена — запись идёт во внутреннюю память</string>
+    <string name="sd_card_unavailable">SD-карта не найдена</string>
+    <string name="action_menu">Меню</string>
+    <string name="timer_recording">● %1$s</string>
+    <string name="delete_failed">Не удалось удалить файл</string>
+    <string name="camera_back">Основная камера</string>
+    <string name="camera_front">Фронтальная камера</string>
+    <string name="camera_switch_after_stop">Камеру можно сменить после остановки записи</string>
+</resources>

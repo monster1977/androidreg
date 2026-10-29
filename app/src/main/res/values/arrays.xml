@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="quality_entries">
+        <item>@string/settings_quality_hd</item>
+        <item>@string/settings_quality_fhd</item>
+        <item>@string/settings_quality_uhd</item>
+    </string-array>
+
+    <string-array name="segment_entries">
+        <item>@string/settings_segment_off</item>
+        <item>@string/settings_segment_1</item>
+        <item>@string/settings_segment_3</item>
+        <item>@string/settings_segment_5</item>
+        <item>@string/settings_segment_10</item>
+    </string-array>
+
+    <string-array name="storage_entries">
+        <item>@string/settings_storage_1</item>
+        <item>@string/settings_storage_2</item>
+        <item>@string/settings_storage_5</item>
+        <item>@string/settings_storage_10</item>
+    </string-array>
+
+    <string-array name="ring_entries">
+        <item>@string/settings_ring_off</item>
+        <item>@string/settings_ring_15</item>
+        <item>@string/settings_ring_30</item>
+        <item>@string/settings_ring_60</item>
+        <item>@string/settings_ring_120</item>
+    </string-array>
+</resources>

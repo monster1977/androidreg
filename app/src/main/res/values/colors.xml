@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#FF3B6DF6</color>
+    <color name="primary_dark">#FF22315C</color>
+    <color name="accent">#FF00C2A8</color>
+    <color name="background">#FF0E1016</color>
+    <color name="surface">#FF151922</color>
+    <color name="text_primary">#FF16202E</color>
+    <color name="text_secondary">#FF8B97AB</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="record_red">#FFE23B3B</color>
+    <color name="record_idle">#FF2A3140</color>
+    <color name="chip_background">#99000000</color>
+    <color name="ic_launcher_background">#FF3B6DF6</color>
+</resources>

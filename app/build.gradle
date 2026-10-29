@@ -1,0 +1,127 @@
+plugins {
+    id 'com.android.application'
+}
+
+// compileSdk 35 нужен CameraX 1.4 (camera-effects — вжигание метки времени в видео).
+// targetSdk задаёт поведение во время работы и переопределяется ключом -PtargetSdk=30 (Android 11).
+def targetSdkVersion = (project.findProperty('targetSdk') ?: '34').toInteger()
+
+// Ключ 2ГИС Geocoder не коммитится: он читается из local.properties (TWOGIS_KEY).
+// Без файла или без ключа сборка остаётся рабочей — приложение попросит ключ в настройках.
+def localPropertiesFile = rootProject.file('local.properties')
+def localProperties = new Properties()
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.withInputStream { localProperties.load(it) }
+}
+def twoGisKey = localProperties.getProperty('TWOGIS_KEY', '')
+
+// Ключи для release-подписи лежат в keystore.properties (в репозиторий не попадает).
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def keystoreProperties = new Properties()
+def hasReleaseSigning = keystorePropertiesFile.exists()
+if (hasReleaseSigning) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+android {
+    namespace 'com.example.dashcam'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.example.dashcam"
+        minSdk 24
+        targetSdk targetSdkVersion
+        versionCode 44
+        versionName "1.43"
+
+        // Ключ 2ГИС по умолчанию; в репозитории его нет (см. чтение local.properties выше).
+        buildConfigField "String", "TWOGIS_KEY", "\"${twoGisKey}\""
+
+        // MediaPipe для жестов несёт свои .so под 4 ABI; на BV6600Pro нужен только arm64.
+        // Остальные ABI добавляли бы к APK ~35 МБ без пользы для этого устройства.
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile rootProject.file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        viewBinding true
+        buildConfig true
+    }
+
+    // Модель MediaPipe читается из assets как файл, а не как сжатый ресурс.
+    androidResources {
+        noCompress 'task'
+    }
+
+    // APK называем с версией и складываем в dist/, чтобы сборки разных версий
+    // лежали рядом и не затирали друг друга (каталог сборки AGP чистит сам).
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            outputFileName = "dashcam-v${variant.versionName}-${variant.buildType.name}.apk"
+        }
+        if (variant.buildType.name == 'release') {
+            variant.assembleProvider.configure {
+                doLast {
+                    copy {
+                        from layout.buildDirectory.dir('outputs/apk/release')
+                        include '*.apk'
+                        into rootProject.file('dist')
+                    }
+                }
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.lifecycle:lifecycle-runtime:2.7.0'
+
+    def media3Version = '1.3.1'
+    implementation "androidx.media3:media3-exoplayer:$media3Version"
+    implementation "androidx.media3:media3-exoplayer-rtsp:$media3Version"
+    implementation "androidx.media3:media3-ui:$media3Version"
+
+    def cameraxVersion = '1.4.1'
+    implementation "androidx.camera:camera-core:$cameraxVersion"
+    implementation "androidx.camera:camera-camera2:$cameraxVersion"
+    implementation "androidx.camera:camera-lifecycle:$cameraxVersion"
+    implementation "androidx.camera:camera-video:$cameraxVersion"
+    implementation "androidx.camera:camera-view:$cameraxVersion"
+    implementation "androidx.camera:camera-effects:$cameraxVersion"
+
+    // Распознавание жестов: MediaPipe Hand Landmarker (21 точка кисти).
+    implementation 'com.google.mediapipe:tasks-vision:0.10.35'
+
+    testImplementation 'junit:junit:4.13.2'
+}

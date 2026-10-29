@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <external-files-path
+        name="dashcam_movies"
+        path="Movies/Dashcam/" />
+    <external-files-path
+        name="dashcam_root"
+        path="." />
+    <files-path
+        name="dashcam_internal"
+        path="Dashcam/" />
+</paths>

@@ -1,0 +1,18 @@
+*.iml
+.gradle/
+local.properties
+.idea/
+.DS_Store
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Ключ подписи и пароли к нему не попадают в репозиторий
+keystore.properties
+keystore/
+*.jks
+*.keystore
+
+# Архив готовых APK (~455 МБ): остаётся на диске, но не в истории Git
+dist/
