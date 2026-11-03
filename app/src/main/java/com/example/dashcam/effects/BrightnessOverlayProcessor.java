@@ -85,8 +85,12 @@ public final class BrightnessOverlayProcessor implements SurfaceProcessor,
     /** Мини-кадр, в который рендерим кадр для замера яркости (пиксели). */
     private static final int LUMA_WIDTH = 32;
     private static final int LUMA_HEIGHT = 18;
-    /** Как часто пересчитывать усиление: примерно раз в секунду при ~30 к/с. */
-    private static final int AUTO_BRIGHT_EVAL_FRAMES = 30;
+    /**
+     * Как часто пересчитывать усиление. Считаем по времени, а не по кадрам: в темноте
+     * камера отдаёт 5–8 к/с (длинная выдержка), и 30 кадров означали бы 4–6 секунд
+     * между шагами — усиление ползло бы к максимуму почти минуту.
+     */
+    private static final long AUTO_BRIGHT_EVAL_INTERVAL_MS = 500L;
     /** Как часто писать измеренную яркость в лог, мс. */
     private static final long AUTO_BRIGHT_LOG_INTERVAL_MS = 5000L;
 
@@ -118,7 +122,7 @@ public final class BrightnessOverlayProcessor implements SurfaceProcessor,
 
     private volatile float mBrightness = 1.0f;
     private volatile boolean mAutoBrightEnabled = false;
-    private int mFramesSinceEval = 0;
+    private long mLastEvalAt = 0L;
     /** Сглаженная (EMA) яркость сцены; -1 — ещё не мерили. */
     private float mSmoothedLuma = -1f;
     /** Текущее состояние гистерезиса: осветляем или уже вышли из тёмной зоны. */
@@ -365,7 +369,7 @@ public final class BrightnessOverlayProcessor implements SurfaceProcessor,
 
     /**
      * Плавно подстраивает усиление яркости под текущую сцену. Вызывается на GL-потоке для
-     * каждого кадра: замеряет яркость раз в {@link #AUTO_BRIGHT_EVAL_FRAMES} кадров.
+     * каждого кадра: замеряет яркость раз в {@link #AUTO_BRIGHT_EVAL_INTERVAL_MS} мс.
      */
     private void updateAutoBrightness() {
         if (!mAutoBrightEnabled) {
@@ -375,13 +379,15 @@ public final class BrightnessOverlayProcessor implements SurfaceProcessor,
             mLastMeanLuma = -1;
             mSmoothedLuma = -1f;
             mBrightening = false;
-            mFramesSinceEval = 0;
+            mLastEvalAt = 0L;
             return;
         }
-        if (++mFramesSinceEval < AUTO_BRIGHT_EVAL_FRAMES) {
+
+        long now = SystemClock.elapsedRealtime();
+        if (now - mLastEvalAt < AUTO_BRIGHT_EVAL_INTERVAL_MS) {
             return;
         }
-        mFramesSinceEval = 0;
+        mLastEvalAt = now;
 
         int luma = measureMeanLuma();
         if (luma < 0) {
@@ -409,7 +415,6 @@ public final class BrightnessOverlayProcessor implements SurfaceProcessor,
         float step = target > mBrightness ? AUTO_BRIGHT_STEP_UP : AUTO_BRIGHT_STEP_DOWN;
         mBrightness = approach(mBrightness, target, step);
 
-        long now = SystemClock.elapsedRealtime();
         if (now - mLastLumaLogAt >= AUTO_BRIGHT_LOG_INTERVAL_MS) {
             mLastLumaLogAt = now;
             Log.i(TAG, "Яркость кадра YAVG=" + luma

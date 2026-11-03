@@ -37,6 +37,7 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.util.Log;
+import android.util.Range;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -106,6 +107,13 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
     private static final long CAMERA_BIND_RETRY_MS = 700;
 
     /**
+     * Широкий диапазон FPS для AE: в темноте камера сама удлиняет выдержку до 1/5 с
+     * (5 к/с), в свету держит 30 к/с. Такой диапазон есть в характеристиках сенсора;
+     * фиксированные 30–30 не давали выдержке вырасти выше ~1/30 с — отсюда чёрное видео.
+     */
+    private static final Range<Integer> LOW_LIGHT_FPS_RANGE = new Range<>(5, 30);
+
+    /**
      * Имя файла, который пишется прямо сейчас. Галерея его не показывает: MP4 без записанного
      * индекса (moov) не воспроизводится, пока запись не остановлена.
      */
@@ -172,8 +180,8 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
 
     private boolean cameraReady;
     private boolean recording;
-    /** Сколько раз уже отчитались о фактическом режиме фокуса (логируем первые два). */
-    private int focusResultsLogged;
+    /** Сколько первых кадров уже отчитались о фокусе/ISO/выдержке (логируем первые 6). */
+    private int captureResultsLogged;
     /** Сколько попыток привязки камеры уже сделано после неудачи. */
     private int cameraBindRetries;
     private boolean pendingStart;
@@ -451,14 +459,14 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
         // резко всё дальше ~30 см). Фронтальную камеру не трогаем.
         boolean fixedFocus = lensFacing == CameraSelector.LENS_FACING_BACK
                 && supportsManualFocus(lensFacing);
-        focusResultsLogged = 0;
+        captureResultsLogged = 0;
 
         Preview.Builder previewBuilder = new Preview.Builder();
         VideoCapture.Builder<Recorder> videoBuilder = new VideoCapture.Builder<>(recorder);
-        if (fixedFocus) {
-            applyFixedFocus(previewBuilder);
-            applyFixedFocus(videoBuilder);
-        }
+        // Широкий FPS-диапазон нужен и превью, и записи: сессия одна, AE выбирает
+        // выдержку по кадру. Фокус фиксируем только у основной камеры.
+        applyCamera2Options(previewBuilder, fixedFocus);
+        applyCamera2Options(videoBuilder, fixedFocus);
         preview = previewBuilder.build();
         videoCapture = videoBuilder.build();
         Log.i(TAG, fixedFocus
@@ -525,6 +533,9 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
                 camera = cameraProvider.bindToLifecycle(this, cameraSelector,
                         preview, videoCapture);
             }
+            if (camera != null) {
+                logCameraCharacteristics(camera);
+            }
             // Уровень цифрового осветления живёт в эффекте; на свежем эффекте он уже задан.
             Log.i(TAG, "Камера привязана: автояркость "
                     + (Prefs.autoBright(this) ? "вкл" : "выкл")
@@ -577,38 +588,72 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
         return false;
     }
 
-    /** Отключает автофокус в конфигурации use case: {@code AF OFF} + дистанция 0 (бесконечность). */
-    private void applyFixedFocus(ExtendableBuilder<?> builder) {
-        new Camera2Interop.Extender<>(builder)
-                .setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE,
-                        CaptureRequest.CONTROL_AF_MODE_OFF)
-                .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, 0f)
-                .setSessionCaptureCallback(focusReportCallback);
+    /**
+     * Настройки Camera2 для превью и записи: широкий FPS-диапазон 5–30, чтобы AE в темноте
+     * удлинял выдержку; у основной камеры — фиксированный фокус на бесконечность; колбэк
+     * первых кадров для диагностики ISO/выдержки/FPS.
+     */
+    private void applyCamera2Options(ExtendableBuilder<?> builder, boolean fixedFocus) {
+        Camera2Interop.Extender<?> extender = new Camera2Interop.Extender<>(builder);
+        extender.setCaptureRequestOption(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                LOW_LIGHT_FPS_RANGE);
+        if (fixedFocus) {
+            extender.setCaptureRequestOption(CaptureRequest.CONTROL_AF_MODE,
+                            CaptureRequest.CONTROL_AF_MODE_OFF)
+                    .setCaptureRequestOption(CaptureRequest.LENS_FOCUS_DISTANCE, 0f);
+        }
+        extender.setSessionCaptureCallback(captureReportCallback);
     }
 
     /**
-     * Первые кадры после привязки печатают фактический режим фокуса из результата камеры:
-     * так видно, принял ли HAL ручную фокусировку (AF=0) и на какой дистанции (0 — бесконечность).
+     * Первые кадры после привязки печатают фактические параметры камеры: режим фокуса, ISO,
+     * выдержку и FPS-диапазон AE. По ним видно, принял ли HAL широкий диапазон 5–30 и
+     * действительно ли выдержка удлиняется в темноте.
      */
-    private final CameraCaptureSession.CaptureCallback focusReportCallback =
+    private final CameraCaptureSession.CaptureCallback captureReportCallback =
             new CameraCaptureSession.CaptureCallback() {
                 @Override
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session,
                                                @NonNull CaptureRequest request,
                                                @NonNull TotalCaptureResult result) {
-                    if (focusResultsLogged >= 2) {
+                    if (captureResultsLogged >= 6) {
                         return;
                     }
-                    focusResultsLogged++;
+                    captureResultsLogged++;
                     try {
-                        Integer mode = result.get(CaptureResult.CONTROL_AF_MODE);
+                        Integer afMode = result.get(CaptureResult.CONTROL_AF_MODE);
                         Float distance = result.get(CaptureResult.LENS_FOCUS_DISTANCE);
-                        Log.i(TAG, "Фокус кадра: AF=" + mode + ", дистанция=" + distance);
+                        Integer iso = result.get(CaptureResult.SENSOR_SENSITIVITY);
+                        Long exposureNs = result.get(CaptureResult.SENSOR_EXPOSURE_TIME);
+                        Range<Integer> fps = result.get(CaptureResult.CONTROL_AE_TARGET_FPS_RANGE);
+                        Integer aeState = result.get(CaptureResult.CONTROL_AE_STATE);
+                        String exposure = exposureNs == null
+                                ? "?" : String.format(Locale.US, "%.1f мс", exposureNs / 1_000_000f);
+                        Log.i(TAG, "Кадр: AF=" + afMode + ", фокус=" + distance
+                                + ", ISO=" + iso + ", выдержка=" + exposure
+                                + ", FPS=" + fps + ", AE=" + aeState);
                     } catch (Exception e) {
-                        Log.w(TAG, "Не удалось прочитать режим фокуса из результата", e);
+                        Log.w(TAG, "Не удалось прочитать параметры кадра", e);
                     }
                 }
             };
+
+    /** Диагностика: что сенсор умеет по ISO, выдержке и FPS (пишется при каждой привязке). */
+    private void logCameraCharacteristics(Camera camera) {
+        try {
+            Camera2CameraInfo info = Camera2CameraInfo.from(camera.getCameraInfo());
+            Range<Integer> iso = info.getCameraCharacteristic(
+                    CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE);
+            Range<Long> exposure = info.getCameraCharacteristic(
+                    CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE);
+            Range<Integer>[] fps = info.getCameraCharacteristic(
+                    CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
+            Log.i(TAG, "Характеристики камеры: ISO=" + iso + ", выдержка(нс)=" + exposure
+                    + ", FPS=" + Arrays.toString(fps));
+        } catch (Exception e) {
+            Log.w(TAG, "Не удалось прочитать характеристики камеры", e);
+        }
+    }
 
     /** Метка даты/времени и GPS + цифровое осветление кадра — в превью и в записанном файле. */
     private BrightnessOverlayEffect createOverlayEffect() {
