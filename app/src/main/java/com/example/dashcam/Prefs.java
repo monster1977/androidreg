@@ -38,6 +38,13 @@ public final class Prefs {
     /** Останавливать запись и блокировать экран, когда координаты не меняются. */
     public static final String KEY_STATIONARY_STOP = "stationary_stop";
     public static final String KEY_STATIONARY_MIN = "stationary_min";
+    /** Г-сенсор: включать ли датчик удара (v1.45). */
+    public static final String KEY_GSENSOR = "gsensor";
+    /** Порог срабатывания Г-сенсора в g. */
+    public static final String KEY_GSENSOR_THRESHOLD_G = "gsensor_threshold_g";
+    /** Служебное: когда был последний зафиксированный удар и сколько их было. */
+    public static final String KEY_IMPACT_AT = "impact_at";
+    public static final String KEY_IMPACT_COUNT = "impact_count";
 
     /**
      * Служебный флаг (не настройка): пользователь хочет, чтобы запись шла. Нужен, чтобы
@@ -289,6 +296,43 @@ public final class Prefs {
 
     public static void setStationaryMinutes(Context context, int minutes) {
         get(context).edit().putInt(KEY_STATIONARY_MIN, minutes).apply();
+    }
+
+    /**
+     * Г-сенсор: датчик ускорения следит за ударом и защищает затронутые записи от
+     * кольцевой перезаписи (v1.45). По умолчанию включён.
+     */
+    public static boolean gsensorEnabled(Context context) {
+        return get(context).getBoolean(KEY_GSENSOR, true);
+    }
+
+    public static void setGsensorEnabled(Context context, boolean value) {
+        get(context).edit().putBoolean(KEY_GSENSOR, value).apply();
+    }
+
+    /** Порог Г-сенсора в g: сколько лишнего ускорения считать ударом. */
+    public static float gsensorThresholdG(Context context) {
+        return get(context).getFloat(KEY_GSENSOR_THRESHOLD_G, 2.5f);
+    }
+
+    public static void setGsensorThresholdG(Context context, float value) {
+        get(context).edit().putFloat(KEY_GSENSOR_THRESHOLD_G, value).apply();
+    }
+
+    /** Время последнего удара ({@code System.currentTimeMillis()}); 0 — ударов не было. */
+    public static long lastImpactAt(Context context) {
+        return get(context).getLong(KEY_IMPACT_AT, 0L);
+    }
+
+    public static int impactCount(Context context) {
+        return get(context).getInt(KEY_IMPACT_COUNT, 0);
+    }
+
+    public static void recordImpact(Context context, long timestampMs) {
+        get(context).edit()
+                .putLong(KEY_IMPACT_AT, timestampMs)
+                .putInt(KEY_IMPACT_COUNT, impactCount(context) + 1)
+                .apply();
     }
 
     /** true — запись должна продолжаться (в т.ч. после перезапуска сервиса системой). */

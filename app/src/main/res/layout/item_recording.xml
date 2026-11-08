@@ -44,4 +44,15 @@
             android:textSize="13sp" />
     </LinearLayout>
 
+    <!-- Метка «УШИБ»: запись защищена Г-сенсором от кольцевой перезаписи (v1.45). -->
+    <ImageView
+        android:id="@+id/imageProtected"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:layout_marginStart="10dp"
+        android:contentDescription="@string/badge_protected"
+        android:src="@drawable/ic_shield"
+        android:visibility="gone"
+        app:tint="@color/accent" />
+
 </LinearLayout>

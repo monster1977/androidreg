@@ -61,6 +61,7 @@ import androidx.camera.video.Recorder;
 import androidx.camera.video.VideoCapture;
 import androidx.camera.video.VideoRecordEvent;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.app.ServiceCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.util.Consumer;
@@ -98,9 +99,13 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
 
     public static final String ACTION_START = "com.example.dashcam.action.START";
     public static final String ACTION_STOP = "com.example.dashcam.action.STOP";
+    /** Применить настройки Г-сенсора к уже работающему сервису (v1.45). */
+    public static final String ACTION_GSENSOR = "com.example.dashcam.action.GSENSOR";
 
     private static final String CHANNEL_ID = "dashcam_recording";
     private static final int NOTIFICATION_ID = 101;
+    /** Отдельное предупреждение: кольцо занято защищёнными Г-сенсором записями (v1.45). */
+    private static final int RING_OVERFLOW_NOTIFICATION_ID = 102;
 
     /** Сколько раз пробуем привязать камеру, если она ещё занята (например, экраном жестов). */
     private static final int MAX_CAMERA_BIND_RETRIES = 4;
@@ -131,6 +136,19 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
         return recordingActive;
     }
 
+    /**
+     * Сообщает работающему сервису, что настройки Г-сенсора изменились (v1.45).
+     * Если сервиса нет — ничего не делаем: он подпишется на датчик сам при следующем запуске.
+     */
+    public static void notifyGsensorSettingsChanged(Context context) {
+        try {
+            context.startService(new Intent(context, RecordingService.class)
+                    .setAction(ACTION_GSENSOR));
+        } catch (Exception e) {
+            Log.w(TAG, "Не удалось передать настройки Г-сенсора в сервис", e);
+        }
+    }
+
     /** Колбэки состояния для активности. */
     public interface Listener {
         void onCameraReady();
@@ -143,6 +161,9 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
 
         /** Запись не удалось начать (например, мало места) — показываем причину. */
         void onRecordingError(String message);
+
+        /** Г-сенсор зафиксировал удар: затронутые записи защищены от перезаписи (v1.45). */
+        void onImpactDetected(long timestampMs, float deltaG);
     }
 
     public class LocalBinder extends Binder {
@@ -233,6 +254,23 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
     /** Остановка по стоянке уже выполнена — не повторяем до следующей записи. */
     private boolean stationaryTriggered;
 
+    /**
+     * Г-сенсор: датчик ускорения ловит удар и защищает затронутые записи от кольцевой
+     * перезаписи (v1.45). Подписываемся при создании сервиса — он живёт и во время записи,
+     * и пока открыто приложение с остановленной записью (телефон в кармане на стоянке).
+     */
+    private ImpactDetector impactDetector;
+    /** Время и величина последнего удара — показываются в меню и в списке записей. */
+    private volatile long lastImpactAtMs;
+    private volatile float lastImpactDeltaG;
+    /**
+     * Текущий незакрытый сегмент нельзя переименовать (CameraX пишет именно в этот файл),
+     * поэтому его метку «УШИБ» ставим, когда он закрыт.
+     */
+    private volatile boolean protectCurrentSegment;
+    /** Сколько записей вокруг удара защищаем: текущий сегмент плюс предыдущий. */
+    private static final int PROTECT_AROUND_IMPACT = 2;
+
     /** Сколько кадров реально прошло через наложение. 0 — вжигание не работает. */
     private volatile int overlayDrawCount;
 
@@ -303,6 +341,8 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
         bindCameraAsync();
         // Координаты нужны и на экране до начала записи, поэтому подписываемся сразу.
         startLocationUpdates();
+        // Г-сенсор должен работать и до начала записи: толчок на стоянке тоже ДТП.
+        startImpactDetector();
     }
 
     @NonNull
@@ -331,6 +371,12 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
             } else if (ACTION_STOP.equals(action)) {
                 Prefs.setRecordingDesired(this, false);
                 stopRecording(false);
+            } else if (ACTION_GSENSOR.equals(action)) {
+                applyGsensorSettings();
+                if (!Prefs.recordingDesired(this)) {
+                    // Сервис мог быть поднят только ради настроек — без записи его не держим.
+                    stopSelf(startId);
+                }
             } else if (intent == null) {
                 // Система перезапустила процесс (START_STICKY). Продолжаем запись, только
                 // если пользователь её не останавливал и права камеры на месте.
@@ -366,6 +412,8 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
         handler.removeCallbacks(stationaryCheckRunnable);
         stationaryWatchArmed = false;
         stationaryTriggered = false;
+        stopImpactDetector();
+        protectCurrentSegment = false;
         storageExecutor.shutdownNow();
         if (activeRecording != null) {
             activeRecording.stop();
@@ -1053,6 +1101,10 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
         activeRecordingName = null;
 
         boolean retry = false;
+        // Удар был во время этого сегмента: защищаем его — но только сейчас, когда CameraX
+        // перестал в него писать (переименование открытого файла потеряло бы запись).
+        final boolean protectFinished = protectCurrentSegment;
+        protectCurrentSegment = false;
         if (error) {
             Log.e(TAG, "Запись завершилась с ошибкой: код " + finalize.getError(), finalize.getCause());
             if (finishedUri != null) {
@@ -1076,9 +1128,17 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
                     // Файл записан, но индекс MP4 не читается — предупредим в логе.
                     Log.w(TAG, "Файл не читается как видео: " + finishedName);
                 }
+                if (protectFinished) {
+                    StorageUtils.markRecordingProtected(RecordingService.this, finishedName);
+                }
                 // Кольцо: удаляем самые старые сегменты по лимиту времени и объёма.
                 // Только что закрытый файл не трогаем: пользователь мог нажать «стоп» сразу.
-                StorageUtils.prune(RecordingService.this, finishedName);
+                // Имя передаём такое, каким файл стал на самом деле (с меткой УШИБ или без).
+                boolean overflow = StorageUtils.prune(RecordingService.this,
+                        protectFinished ? StorageUtils.withProtectedMarker(finishedName) : finishedName);
+                if (overflow) {
+                    notifyRingOverflow();
+                }
             });
         }
 
@@ -1177,6 +1237,128 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
                 // Уже освобождён.
             }
         }
+    }
+
+    // ---------------------------------------------------------------- г-сенсор
+
+    /**
+     * Подписывается на датчик ускорения, если Г-сенсор включён в настройках.
+     * Вызывается при создании сервиса, при старте сегмента и после изменения настроек.
+     */
+    private void startImpactDetector() {
+        if (destroyed) {
+            return;
+        }
+        if (!Prefs.gsensorEnabled(this)) {
+            stopImpactDetector();
+            return;
+        }
+        if (impactDetector == null) {
+            impactDetector = new ImpactDetector(this, handler, this::onImpactDetected);
+        }
+        if (!impactDetector.isAvailable()) {
+            Log.i(TAG, "Датчик ускорения не найден — Г-сенсор выключен");
+            return;
+        }
+        impactDetector.setThresholdG(Prefs.gsensorThresholdG(this));
+        impactDetector.start();
+    }
+
+    private void stopImpactDetector() {
+        if (impactDetector != null) {
+            impactDetector.stop();
+        }
+    }
+
+    /** Настройки Г-сенсора изменились в экране настроек — применяем их сразу. */
+    public void applyGsensorSettings() {
+        startImpactDetector();
+    }
+
+    /** Есть ли у телефона датчик ускорения (в меню это показываем отдельной строкой). */
+    public boolean isGsensorAvailable() {
+        if (impactDetector == null) {
+            impactDetector = new ImpactDetector(this, handler, this::onImpactDetected);
+        }
+        return impactDetector.isAvailable();
+    }
+
+    public long getLastImpactAt() {
+        return lastImpactAtMs != 0L ? lastImpactAtMs : Prefs.lastImpactAt(this);
+    }
+
+    public float getLastImpactDeltaG() {
+        return lastImpactDeltaG;
+    }
+
+    /**
+     * Удар зафиксирован. Защищаем и уже закрытые сегменты (удар мог прийтись на последние
+     * секунды закрытого файла), и тот, что пишется сейчас — его отметим при Finalize.
+     */
+    private void onImpactDetected(float deltaG, int samples) {
+        long now = System.currentTimeMillis();
+        lastImpactAtMs = now;
+        lastImpactDeltaG = deltaG;
+        Prefs.recordImpact(this, now);
+        Log.i(TAG, "УШИБ: превышение " + String.format(Locale.US, "%.2f", deltaG)
+                + " g, защищаем записи от перезаписи");
+
+        if (recording) {
+            protectCurrentSegment = true;
+        }
+        int finishedToProtect = recording ? PROTECT_AROUND_IMPACT - 1 : PROTECT_AROUND_IMPACT;
+        try {
+            storageExecutor.execute(() -> {
+                int marked = StorageUtils.markRecentRecordingsProtected(
+                        RecordingService.this, finishedToProtect);
+                Log.i(TAG, "УШИБ: защищено завершённых записей: " + marked);
+            });
+        } catch (Exception e) {
+            Log.w(TAG, "Не удалось защитить записи после удара", e);
+        }
+
+        if (listener != null) {
+            handler.post(() -> {
+                if (listener != null) {
+                    listener.onImpactDetected(now, deltaG);
+                }
+            });
+        }
+    }
+
+    /**
+     * Кольцо не может уступить место: всё занято защищёнными записями. Предупреждаем
+     * уведомлением и в активности — дальше просто молча перестать писать было бы хуже.
+     */
+    private void notifyRingOverflow() {
+        String text = getString(R.string.ring_overflow_notification,
+                StorageUtils.formatSize(StorageUtils.totalSize(this)),
+                StorageUtils.formatSize(StorageUtils.storageLimitBytes(this)));
+        Log.e(TAG, text);
+        try {
+            Intent openIntent = new Intent(this, MainActivity.class);
+            openIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            PendingIntent contentIntent = PendingIntent.getActivity(
+                    this, 2, openIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
+                    .setSmallIcon(R.drawable.ic_recording)
+                    .setContentTitle(getString(R.string.impact_detected))
+                    .setContentText(text)
+                    .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
+                    .setOngoing(false)
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setContentIntent(contentIntent)
+                    .build();
+            NotificationManagerCompat.from(this).notify(RING_OVERFLOW_NOTIFICATION_ID, notification);
+        } catch (Exception e) {
+            Log.w(TAG, "Не удалось показать предупреждение о переполнении кольца", e);
+        }
+        handler.post(() -> {
+            if (listener != null) {
+                listener.onRecordingError(getString(R.string.ring_overflow_short));
+            }
+        });
     }
 
     // ---------------------------------------------------------------- gps

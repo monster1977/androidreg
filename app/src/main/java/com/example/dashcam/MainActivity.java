@@ -131,6 +131,8 @@ public class MainActivity extends AppCompatActivity
     /** Последний посчитанный объём записей: полный обход MediaStore не делаем чаще раза в 10 с. */
     private long totalSizeCache = -1L;
     private long lastTotalSizeAt;
+    /** Сколько записей защищено от перезаписи Г-сенсором; -1 — ещё не посчитано. */
+    private int protectedCountCache = -1;
     private static final long STORAGE_REFRESH_MS = 10_000L;
     /** Сеть камеры, для которой задний вид уже открывали автоматически. */
     private String autoOpenedSsid;
@@ -1234,12 +1236,13 @@ public class MainActivity extends AppCompatActivity
         if (totalSizeCache < 0 || now - lastTotalSizeAt >= STORAGE_REFRESH_MS) {
             lastTotalSizeAt = now;
             new Thread(() -> {
-                long total = StorageUtils.totalSize(getApplicationContext());
+                StorageUtils.Stats stats = StorageUtils.stats(getApplicationContext());
                 handler.post(() -> {
                     if (isFinishing() || isDestroyed()) {
                         return;
                     }
-                    totalSizeCache = total;
+                    totalSizeCache = stats.totalBytes;
+                    protectedCountCache = stats.protectedCount;
                     updateStorageText();
                 });
             }, "storage-stats").start();
@@ -1248,9 +1251,19 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void updateStorageText() {
-        textStorage.setText(getString(R.string.storage_info,
+        StringBuilder text = new StringBuilder(getString(R.string.storage_info,
                 totalSizeCache < 0 ? "…" : StorageUtils.formatSize(totalSizeCache),
                 Prefs.maxStorageGb(this) + " ГБ"));
+        if (protectedCountCache > 0) {
+            // Защищённые УШИБОМ записи кольцом не удаляются — их видно в строке хранения (v1.45).
+            text.append(getString(R.string.storage_protected, protectedCountCache));
+        }
+        long impactAt = service != null ? service.getLastImpactAt() : 0L;
+        if (impactAt > 0) {
+            text.append(" · ")
+                    .append(getString(R.string.impact_last, Recording.timeString(impactAt)));
+        }
+        textStorage.setText(text);
     }
 
     /** Диагностика в шапке меню — обновляется каждую секунду, пока экран открыт. */
@@ -1428,5 +1441,17 @@ public class MainActivity extends AppCompatActivity
         pendingTwoGisPoint = null;
         handler.removeCallbacks(clearPendingTwoGisRunnable);
         Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+    }
+
+    @Override
+    public void onImpactDetected(long timestampMs, float deltaG) {
+        // Удар был: записи этого момента помечены защищёнными, поэтому строку хранения
+        // пересчитываем сразу — кольцо больше не сможет их удалить (v1.45).
+        lastTotalSizeAt = 0L;
+        updateStorageInfo();
+        Log.i(TAG, "УШИБ в " + Recording.timeString(timestampMs) + ", превышение "
+                + String.format(java.util.Locale.US, "%.2f", deltaG) + " g");
+        Toast.makeText(this, getString(R.string.status_impact,
+                Recording.timeString(timestampMs)), Toast.LENGTH_LONG).show();
     }
 }

@@ -82,8 +82,19 @@ public class RecordingsActivity extends AppCompatActivity {
     }
 
     private void applyRecordings(List<Recording> recordings, long total) {
-        textSummary.setText(getString(R.string.recordings_summary,
+        StringBuilder summary = new StringBuilder(getString(R.string.recordings_summary,
                 recordings.size(), StorageUtils.formatSize(total)));
+        int protectedCount = 0;
+        for (Recording recording : recordings) {
+            if (recording.isProtected()) {
+                protectedCount++;
+            }
+        }
+        if (protectedCount > 0) {
+            // Сколько файлов кольцо не сможет удалить (v1.45).
+            summary.append(getString(R.string.storage_protected, protectedCount));
+        }
+        textSummary.setText(summary);
 
         if (recordings.isEmpty()) {
             textEmpty.setText(RecordingService.getActiveRecordingName() != null
@@ -129,7 +140,9 @@ public class RecordingsActivity extends AppCompatActivity {
     private void confirmDelete(Recording recording) {
         new AlertDialog.Builder(this)
                 .setTitle(R.string.delete_title)
-                .setMessage(getString(R.string.delete_message, recording.displayName))
+                .setMessage(getString(recording.isProtected()
+                        ? R.string.delete_protected_message
+                        : R.string.delete_message, recording.displayName))
                 .setNegativeButton(R.string.action_cancel, null)
                 .setPositiveButton(R.string.action_delete, (dialog, which) -> {
                     if (StorageUtils.delete(this, recording)) {

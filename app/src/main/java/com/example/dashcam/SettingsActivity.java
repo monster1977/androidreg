@@ -3,12 +3,16 @@ package com.example.dashcam;
 import android.Manifest;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.hardware.Sensor;
+import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -41,8 +45,8 @@ public class SettingsActivity extends AppCompatActivity {
     private static final String[] SEGMENT_LABELS =
             {"Без разбиения", "1 минута", "3 минуты", "5 минут", "10 минут"};
 
-    private static final int[] STORAGE_VALUES = {1, 2, 5, 10};
-    private static final String[] STORAGE_LABELS = {"1 ГБ", "2 ГБ", "5 ГБ", "10 ГБ"};
+    private static final int[] STORAGE_VALUES = {1, 2, 4, 5, 10};
+    private static final String[] STORAGE_LABELS = {"1 ГБ", "2 ГБ", "4 ГБ", "5 ГБ", "10 ГБ"};
 
     private static final int[] RING_VALUES = {0, 15, 30, 60, 120};
     private static final String[] RING_LABELS =
@@ -52,6 +56,9 @@ public class SettingsActivity extends AppCompatActivity {
     private static final int[] STATIONARY_VALUES = {1, 5, 10, 15, 30};
     private static final String[] STATIONARY_LABELS =
             {"1 минута", "5 минут", "10 минут", "15 минут", "30 минут"};
+
+    /** Пороги Г-сенсора — порядок совпадает с @array/gsensor_threshold_entries. */
+    private static final float[] GSENSOR_THRESHOLD_VALUES = {1.5f, 2.5f, 4.0f};
 
     private Spinner spinnerQuality;
     /** Качества, реально поддерживаемые текущей камерой (заполняется в onCreate). */
@@ -66,6 +73,9 @@ public class SettingsActivity extends AppCompatActivity {
     private MaterialSwitch switchGps;
     private MaterialSwitch switchStationary;
     private Spinner spinnerStationary;
+    private MaterialSwitch switchGsensor;
+    private Spinner spinnerGsensorThreshold;
+    private TextView textGsensorInfo;
     private MaterialButton buttonLockAdmin;
     private MaterialSwitch switchCharge;
     private MaterialSwitch switchSdCard;
@@ -146,6 +156,28 @@ public class SettingsActivity extends AppCompatActivity {
         spinnerStationary.setSelection(indexOf(STATIONARY_VALUES, Prefs.stationaryMinutes(this)));
         switchStationary = findViewById(R.id.switchStationary);
         switchStationary.setChecked(Prefs.stationaryStop(this));
+
+        // Г-сенсор. Если датчика ускорения нет, настройка недоступна: иначе пользователь
+        // ждёт защиты записей, которой физически не существует.
+        switchGsensor = findViewById(R.id.switchGsensor);
+        spinnerGsensorThreshold = findViewById(R.id.spinnerGsensorThreshold);
+        textGsensorInfo = findViewById(R.id.textGsensorInfo);
+        final boolean hasAccelerometer = hasAccelerometer();
+        if (hasAccelerometer) {
+            switchGsensor.setEnabled(true);
+            switchGsensor.setChecked(Prefs.gsensorEnabled(this));
+            spinnerGsensorThreshold.setEnabled(Prefs.gsensorEnabled(this));
+            spinnerGsensorThreshold.setSelection(
+                    indexOf(GSENSOR_THRESHOLD_VALUES, Prefs.gsensorThresholdG(this)));
+            switchGsensor.setOnCheckedChangeListener((button, checked) ->
+                    spinnerGsensorThreshold.setEnabled(checked));
+        } else {
+            switchGsensor.setChecked(false);
+            switchGsensor.setEnabled(false);
+            spinnerGsensorThreshold.setEnabled(false);
+            textGsensorInfo.setVisibility(View.VISIBLE);
+        }
+
         buttonLockAdmin = findViewById(R.id.buttonLockAdmin);
         buttonLockAdmin.setOnClickListener(v -> enableLockAdmin());
         updateLockAdminButton();
@@ -346,6 +378,22 @@ public class SettingsActivity extends AppCompatActivity {
         return 0;
     }
 
+    private static int indexOf(float[] values, float value) {
+        for (int i = 0; i < values.length; i++) {
+            if (Math.abs(values[i] - value) < 0.01f) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    /** Есть ли у телефона датчик ускорения — без него Г-сенсор бессмысленен. */
+    private boolean hasAccelerometer() {
+        SensorManager manager =
+                (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        return manager != null && manager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) != null;
+    }
+
     /**
      * Индекс сохранённого качества; если такого варианта у камеры нет (например, раньше
      * было выбрано 4K), показываем самое высокое доступное, а не сбрасываем на 720p.
@@ -393,10 +441,22 @@ public class SettingsActivity extends AppCompatActivity {
         }
         Prefs.setRecordToSdCard(this, toSd);
 
+        // Г-сенсор: порог сохраняем только когда функция включена и датчик действительно есть.
+        boolean gsensorOn = switchGsensor.isEnabled() && switchGsensor.isChecked();
+        Prefs.setGsensorEnabled(this, gsensorOn);
+        if (gsensorOn) {
+            Prefs.setGsensorThresholdG(this,
+                    GSENSOR_THRESHOLD_VALUES[spinnerGsensorThreshold.getSelectedItemPosition()]);
+        }
+
         // Лимиты могли уменьшиться — сразу подчищаем старое (в фоне: обход MediaStore
         // на главном потоке — кандидат на ANR, K4).
         new Thread(() -> StorageUtils.prune(getApplicationContext(), null),
                 "settings-prune").start();
+
+        // Работающий сервис должен переподписаться на датчик с новым порогом сразу,
+        // а не после следующего старта записи.
+        RecordingService.notifyGsensorSettingsChanged(this);
 
         requestPermissionsForToggles();
 

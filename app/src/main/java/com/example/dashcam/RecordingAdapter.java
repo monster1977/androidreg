@@ -64,6 +64,9 @@ public class RecordingAdapter extends RecyclerView.Adapter<RecordingAdapter.Reco
         Recording item = items.get(position);
         holder.textTitle.setText(item.title());
         holder.textSubtitle.setText(item.subtitle());
+        // Защищённые УШИБОМ записи кольцом не удаляются — их видно по щиту в списке (v1.45).
+        holder.imageProtected.setVisibility(
+                item.isProtected() ? View.VISIBLE : View.GONE);
         holder.itemView.setOnClickListener(v -> clickListener.onRecordingClick(item));
         holder.itemView.setOnLongClickListener(v -> {
             longClickListener.onRecordingLongClick(item);
@@ -79,12 +82,14 @@ public class RecordingAdapter extends RecyclerView.Adapter<RecordingAdapter.Reco
 
     static class RecordingViewHolder extends RecyclerView.ViewHolder {
         final ImageView icon;
+        final ImageView imageProtected;
         final TextView textTitle;
         final TextView textSubtitle;
 
         RecordingViewHolder(@NonNull View itemView) {
             super(itemView);
             icon = itemView.findViewById(R.id.imageItemIcon);
+            imageProtected = itemView.findViewById(R.id.imageProtected);
             textTitle = itemView.findViewById(R.id.textItemTitle);
             textSubtitle = itemView.findViewById(R.id.textItemSubtitle);
         }

@@ -76,6 +76,7 @@
     <string name="settings_storage_1">1 ГБ</string>
     <string name="settings_storage_2">2 ГБ</string>
     <string name="settings_storage_5">5 ГБ</string>
+    <string name="settings_storage_4">4 ГБ</string>
     <string name="settings_storage_10">10 ГБ</string>
     <string name="settings_audio">Писать звук</string>
     <string name="settings_audio_desc">Микрофон записывается вместе с видео</string>
@@ -83,7 +84,7 @@
     <string name="settings_autostart_desc">Запись начнётся сразу после открытия приложения</string>
     <string name="settings_save">Сохранить</string>
     <string name="settings_saved">Настройки сохранены</string>
-    <string name="settings_storage_note">Старые файлы удаляются автоматически, когда размер записей превышает лимит.</string>
+    <string name="settings_storage_note">Кольцо работает по двум условиям одновременно: старое удаляется, когда превышен лимит объёма и все записи старше лимита хранения. Защищённые записи от УШИБА кольцо не трогает, поэтому при включённом Г-сенсоре маленький лимит быстро забивается.</string>
     <string name="settings_ring">Хранить по кругу</string>
     <string name="settings_ring_note">Самые старые записи удаляются по времени: телефон не забьётся, даже если лимит объёма большой.</string>
     <string name="settings_ring_off">Без ограничения по времени</string>
@@ -231,4 +232,24 @@
     <string name="camera_back">Основная камера</string>
     <string name="camera_front">Фронтальная камера</string>
     <string name="camera_switch_after_stop">Камеру можно сменить после остановки записи</string>
+
+    <!-- Г-сенсор / УШИБ (v1.45) -->
+    <string name="settings_gsensor">Г-сенсор (датчик удара)</string>
+    <string name="settings_gsensor_desc">Датчик ускорения ловит резкий удар (авария, наезд на препятствие, толчок на стоянке) и защищает записи от кольцевой перезаписи. Защита нужна и во время движения, и на стоянке: пока телефон лежит в кармане, акселерометр работает.</string>
+    <string name="settings_gsensor_threshold">Порог срабатывания</string>
+    <string name="settings_gsensor_15">1.5 g — мягкий толчок</string>
+    <string name="settings_gsensor_25">2.5 g — обычный удар при ДТП</string>
+    <string name="settings_gsensor_40">4.0 g — жёсткий удар</string>
+    <string name="gsensor_unavailable">Датчик ускорения не найден — Г-сенсор недоступен</string>
+    <string name="impact_detected">УШИБ: записи защищены</string>
+    <string name="impact_protected">Защищено Г-сенсором: %1$s</string>
+    <string name="impact_last">Последний УШИБ: %1$s</string>
+    <string name="status_impact">УШИБ %1$s — записи защищены</string>
+    <string name="storage_protected"> · защищено %1$d</string>
+    <string name="badge_protected">Защищено от перезаписи</string>
+    <string name="delete_protected_message">Файл «%1$s» защищён Г-сенсором от перезаписи кольцом. Удалить его вручную?</string>
+    <string name="ring_overflow">Кольцо: %1$s не вмещает защищённые записи</string>
+    <string name="ring_overflow_short">Кольцо: защищённые записи заняли всё место</string>
+    <string name="ring_overflow_notification">Кольцо: %1$s из %2$s занято защищёнными записями. Освободите место или увеличьте лимит.</string>
+    <string name="ring_overflow_toast">Кольцо: %1$s занято защищёнными записями, %2$s. Новая запись не началась.</string>
 </resources>

@@ -202,6 +202,148 @@ public final class StorageUtils {
         return total;
     }
 
+    // ------------------------------------------------------------ Г-сенсор (v1.45)
+
+    /**
+     * Метка защищённой от кольцевой перезаписи записи: добавляется в имя файла, поэтому
+     * защита видна и в галерее, и в файловом менеджере, и переживает переустановку
+     * приложения (имена файлов — единственное, что остаётся после удаления приложения).
+     */
+    public static final String PROTECTED_MARKER = "\u0423\u0428\u0418\u0411";
+
+    public static boolean isProtected(String displayName) {
+        return displayName != null && displayName.contains(PROTECTED_MARKER);
+    }
+
+    /**
+     * Имя защищённой записи из обычного: {@code DASHCAM_20261108_114444.mp4} →
+     * {@code DASHCAM_20261108_114444_УШИБ.mp4}. Префикс сохраняется, поэтому файл
+     * по-прежнему находится как запись приложения.
+     */
+    public static String withProtectedMarker(String displayName) {
+        if (displayName == null || isProtected(displayName)) {
+            return displayName;
+        }
+        int dot = displayName.lastIndexOf('.');
+        if (dot <= NAME_PREFIX.length()) {
+            // Расширения нет (или имя подозрительное) — просто дописываем метку в конец.
+            return displayName + "_" + PROTECTED_MARKER;
+        }
+        return displayName.substring(0, dot) + "_" + PROTECTED_MARKER + displayName.substring(dot);
+    }
+
+    /**
+     * Защищает конкретную запись от перезаписи: переименовывает строку MediaStore.
+     *
+     * <p>Только завершённые записи: текущий сегмент переименовывать нельзя — CameraX
+     * пишет в тот же файл и при смене имени потеряет его. Текущий сегмент защищаем,
+     * когда он завершён (см. {@code RecordingService}).</p>
+     *
+     * @return true, если строку нашли и переименовали
+     */
+    public static boolean markRecordingProtected(Context context, String displayName) {
+        if (displayName == null || isProtected(displayName)) {
+            return false;
+        }
+        String marked = withProtectedMarker(displayName);
+        String[] projection = {MediaStore.Video.Media._ID};
+        String selection = MediaStore.Video.Media.DISPLAY_NAME + " = ?";
+        String[] args = {displayName};
+        for (Uri uri : allCollections(context)) {
+            try (Cursor cursor = context.getContentResolver().query(
+                    uri, projection, selection, args, null)) {
+                if (cursor == null) {
+                    continue;
+                }
+                int idColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID);
+                while (cursor.moveToNext()) {
+                    ContentValues values = new ContentValues();
+                    values.put(MediaStore.Video.Media.DISPLAY_NAME, marked);
+                    int updated = context.getContentResolver().update(
+                            ContentUris.withAppendedId(uri, cursor.getLong(idColumn)),
+                            values, null, null);
+                    if (updated > 0) {
+                        Log.i(TAG, "Защитили запись от перезаписи: " + marked);
+                        return true;
+                    }
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Не удалось защитить запись " + displayName, e);
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Защищает несколько самых свежих завершённых записей. Нужно потому, что в момент удара
+     * запись самого момента ещё не закрыта: кроме текущего сегмента надо сохранить и
+     * предыдущий — удар мог прийтись на последние секунды уже закрытого файла.
+     */
+    public static int markRecentRecordingsProtected(Context context, int count) {
+        int marked = 0;
+        for (Recording recording : listRecordings(context)) {
+            if (marked >= count) {
+                break;
+            }
+            if (isProtected(recording.displayName)) {
+                continue;
+            }
+            if (markRecordingProtected(context, recording.displayName)) {
+                marked++;
+            }
+        }
+        return marked;
+    }
+
+    /** Сколько защищённых записей лежит в хранилище. */
+    public static int protectedCount(Context context) {
+        String[] projection = {MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME};
+        String selection = MediaStore.Video.Media.DISPLAY_NAME + " LIKE ?";
+        String[] args = {NAME_PREFIX + "%"};
+        int count = 0;
+        for (Uri uri : allCollections(context)) {
+            try (Cursor cursor = context.getContentResolver().query(
+                    uri, projection, selection, args, null)) {
+                if (cursor == null) {
+                    continue;
+                }
+                int nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME);
+                while (cursor.moveToNext()) {
+                    if (isProtected(cursor.getString(nameColumn))) {
+                        count++;
+                    }
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Не удалось посчитать защищённые записи", e);
+            }
+        }
+        return count;
+    }
+
+    /** Объём всех записей и число защищённых — за один обход MediaStore. */
+    public static final class Stats {
+
+        public final long totalBytes;
+        public final int protectedCount;
+
+        Stats(long totalBytes, int protectedCount) {
+            this.totalBytes = totalBytes;
+            this.protectedCount = protectedCount;
+        }
+    }
+
+    public static Stats stats(Context context) {
+        long total = 0;
+        int protectedCount = 0;
+        for (Recording recording : listRecordings(context)) {
+            total += recording.sizeBytes;
+            if (isProtected(recording.displayName)) {
+                protectedCount++;
+            }
+        }
+        return new Stats(total, protectedCount);
+    }
+
     /**
      * Удаляет «осиротевшие» записи: если процесс умер до финализации, файл навсегда остаётся
      * с {@code IS_PENDING=1} — его не видит галерея и не трогает кольцо. Сиротами считаем
@@ -338,9 +480,14 @@ public final class StorageUtils {
      * Кольцевая запись: удаляет самые старые файлы, пока не выполнятся оба условия —
      * лимит объёма и лимит времени хранения (иначе файлы копятся бесконечно).
      *
+     * <p>Защищённые Г-сенсором записи ({@link #PROTECTED_MARKER}) не удаляются никогда:
+     * если из-за них место кончилось, возвращаем {@code true} — сервис поднимает
+     * уведомление «освободите место или увеличьте лимит».</p>
+     *
      * @param keepDisplayName имя файла, который сейчас пишется и не должен быть удалён
+     * @return true, если лимит так и не удалось выдержать (защищённые записи не влезают)
      */
-    public static void prune(Context context, String keepDisplayName) {
+    public static boolean prune(Context context, String keepDisplayName) {
         long sizeLimit = storageLimitBytes(context);
         long ringSeconds = (long) Prefs.ringMinutes(context) * 60L;
 
@@ -349,31 +496,68 @@ public final class StorageUtils {
         long totalDurationMs = 0;
         for (Recording recording : all) {
             totalSize += recording.sizeBytes;
+            // durationOf записывает найденную длительность в саму запись: ringPlan
+            // решает по полям Recording, без обращений к ContentResolver.
             totalDurationMs += durationOf(context, recording);
         }
 
-        boolean overSize = totalSize > sizeLimit;
-        boolean overTime = ringSeconds > 0 && totalDurationMs > ringSeconds * 1000L;
-        if (!overSize && !overTime) {
-            return;
-        }
-
-        // Список отсортирован по дате убывания — удаляем с конца, то есть самые старые.
-        for (int i = all.size() - 1; i >= 0; i--) {
-            if (totalSize <= sizeLimit && (ringSeconds <= 0 || totalDurationMs <= ringSeconds * 1000L)) {
-                break;
-            }
-            Recording recording = all.get(i);
-            if (keepDisplayName != null && keepDisplayName.equals(recording.displayName)) {
-                continue;
-            }
-            long duration = durationOf(context, recording);
+        List<Recording> doomed = ringPlan(all, totalSize, totalDurationMs,
+                sizeLimit, ringSeconds, keepDisplayName);
+        for (Recording recording : doomed) {
             if (delete(context, recording)) {
                 Log.i(TAG, "Кольцо: удаляем " + recording.displayName);
                 totalSize -= recording.sizeBytes;
-                totalDurationMs -= duration;
+                totalDurationMs -= recording.durationMs;
             }
         }
+
+        boolean overflow = totalSize > sizeLimit
+                || (ringSeconds > 0 && totalDurationMs > ringSeconds * 1000L);
+        if (overflow) {
+            Log.w(TAG, "Кольцо переполнено защищёнными записями: занято "
+                    + formatSize(totalSize) + ", лимит " + formatSize(sizeLimit));
+        }
+        return overflow;
+    }
+
+    /**
+     * Решение кольца без побочных эффектов — какие записи удалить (от самых старых).
+     * Защищённые Г-сенсором файлы и файл, который сейчас пишется, не удаляются.
+     * Вынесено из {@link #prune}, чтобы решение можно было проверить unit-тестами.
+     *
+     * @param sortedDesc записи, отсортированные по дате убывания (свежие сверху)
+     * @return записи, которые надо удалить; пустой список — удалять нечего
+     */
+    static List<Recording> ringPlan(List<Recording> sortedDesc, long totalSize,
+                                    long totalDurationMs, long sizeLimit, long ringSeconds,
+                                    String keepDisplayName) {
+        List<Recording> doomed = new ArrayList<>();
+        long size = totalSize;
+        long durationMs = totalDurationMs;
+        boolean overSize = size > sizeLimit;
+        boolean overTime = ringSeconds > 0 && durationMs > ringSeconds * 1000L;
+        if (!overSize && !overTime) {
+            return doomed;
+        }
+        for (int i = sortedDesc.size() - 1; i >= 0; i--) {
+            if (size <= sizeLimit && (ringSeconds <= 0 || durationMs <= ringSeconds * 1000L)) {
+                break;
+            }
+            Recording recording = sortedDesc.get(i);
+            if (isProtected(recording.displayName)) {
+                continue;
+            }
+            if (keepDisplayName != null
+                    && (keepDisplayName.equals(recording.displayName)
+                    || withProtectedMarker(keepDisplayName).equals(recording.displayName))) {
+                // Тот самый файл, который сейчас пишется (или только что закрылся).
+                continue;
+            }
+            doomed.add(recording);
+            size -= recording.sizeBytes;
+            durationMs -= recording.durationMs;
+        }
+        return doomed;
     }
 
     /** Длительность записи: сначала из MediaStore, при отсутствии — через MediaMetadataRetriever. */

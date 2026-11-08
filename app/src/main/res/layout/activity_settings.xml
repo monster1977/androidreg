@@ -209,6 +209,46 @@
                 android:layout_width="match_parent"
                 android:layout_height="48dp" />
 
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/switchGsensor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/settings_gsensor"
+                android:textColor="@color/white"
+                android:textSize="15sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_gsensor_desc"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/textGsensorInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/gsensor_unavailable"
+                android:textColor="@color/record_red"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/settings_gsensor_threshold"
+                android:textColor="@color/white"
+                android:textSize="15sp" />
+
+            <Spinner
+                android:id="@+id/spinnerGsensorThreshold"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:entries="@array/gsensor_threshold_entries" />
+
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/buttonLockAdmin"
                 style="@style/Widget.Material3.Button.OutlinedButton"

@@ -30,7 +30,17 @@ public class Recording {
         if (createdAt <= 0L) {
             return displayName;
         }
-        return NAME_FORMAT.format(new Date(createdAt));
+        return timeString(createdAt);
+    }
+
+    /** Время в том же виде, что и заголовок записи — для строк состояния (v1.45). */
+    public static synchronized String timeString(long timeMs) {
+        return NAME_FORMAT.format(new Date(timeMs));
+    }
+
+    /** Защищена ли запись от кольцевой перезаписи (метка УШИБ в имени файла). */
+    public boolean isProtected() {
+        return StorageUtils.isProtected(displayName);
     }
 
     public String subtitle() {
