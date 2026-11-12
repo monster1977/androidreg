@@ -3,6 +3,8 @@ package com.example.dashcam;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import com.example.dashcam.effects.NightMode;
+
 /**
  * Настройки приложения-видеорегистратора, хранятся в SharedPreferences.
  */
@@ -23,6 +25,7 @@ public final class Prefs {
     public static final String KEY_TIMESTAMP = "timestamp";        // дата/время на видео
     public static final String KEY_GPS = "gps";                    // координаты на видео
     public static final String KEY_AUTO_BRIGHT = "auto_bright";    // автояркость в сумерках
+    public static final String KEY_NIGHT_LEVEL = "night_level";    // 0…3, агрессивность автояркости
     public static final String KEY_AUTO_START_CHARGE = "auto_start_charge";
     /** Открывать приложение при разблокировке телефона. */
     public static final String KEY_AUTO_OPEN_ON_UNLOCK = "auto_open_on_unlock";
@@ -172,6 +175,18 @@ public final class Prefs {
 
     public static void setAutoBright(Context context, boolean value) {
         get(context).edit().putBoolean(KEY_AUTO_BRIGHT, value).apply();
+    }
+
+    /**
+     * Ступень «ночного режима» (агрессивность автояркости): 0 — мягкий, 1 — средний
+     * (поведение 1.46), 2 — сильный, 3 — максимальный. Значение вне диапазона прижимается.
+     */
+    public static int nightLevel(Context context) {
+        return NightMode.clamp(get(context).getInt(KEY_NIGHT_LEVEL, NightMode.DEFAULT));
+    }
+
+    public static void setNightLevel(Context context, int level) {
+        get(context).edit().putInt(KEY_NIGHT_LEVEL, NightMode.clamp(level)).apply();
     }
 
     /** Начинать запись автоматически при подключении зарядки. */

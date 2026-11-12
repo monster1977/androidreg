@@ -62,21 +62,12 @@ public final class BrightnessOverlayProcessor implements SurfaceProcessor,
     // Яркость сцены измеряем прямо здесь, из кадров, которые и так проходят через эффект:
     // отдельный ImageAnalysis не нужен, а на MTK он занимал второй поток и ронял разрешение
     // записи с 1080p до 480p (регресс v1.21, исправлено в v1.24).
-    /** Средняя яркость кадра, к которой стремимся при осветлении (шкала Y, 0…255). */
-    private static final float AUTO_BRIGHT_TARGET_Y = 70f;
-    /** Включение осветления: сглаженная яркость ниже этого порога. */
-    private static final float AUTO_BRIGHT_ON_Y = 60f;
     /**
-     * Выключение осветления: сглаженная яркость выше этого порога. Разрыв с
-     * {@link #AUTO_BRIGHT_ON_Y} — гистерезис: не даёт усилению дёргаться у порога
-     * (фары встречных машин, тени деревьев) и «качать» яркость.
+     * Профиль ступени «ночного режима»: пороги, цель и предельное усиление. Ступень меняет
+     * только агрессивность, алгоритм замера/сглаживания общий.
      */
-    private static final float AUTO_BRIGHT_OFF_Y = 88f;
-    /** Максимальное цифровое усиление: выше — слишком много шума на тёмных сценах. */
-    private static final float AUTO_BRIGHT_MAX_GAIN = 3.0f;
-    /** Шаг усиления за одну оценку: вверх медленнее, вниз быстрее (чтобы не пересветить). */
-    private static final float AUTO_BRIGHT_STEP_UP = 0.25f;
-    private static final float AUTO_BRIGHT_STEP_DOWN = 0.5f;
+    private volatile NightMode mNightMode = NightMode.of(NightMode.DEFAULT);
+
     /**
      * Вес нового замера в сглаженной яркости (EMA). 0.4 при замере раз в секунду —
      * это реакция за ~2–3 с, без мгновенного скачка на одиночном тёмном/светлом кадре.
@@ -242,6 +233,20 @@ public final class BrightnessOverlayProcessor implements SurfaceProcessor,
         mAutoBrightEnabled = enabled;
     }
 
+    /**
+     * Задаёт ступень ночного режима (0 — мягкий, 3 — максимальный). Влияет только на пороги
+     * и предельное усиление; действует на следующей оценке кадра. Безопасно вызывать из любого
+     * потока.
+     */
+    public void setAutoBrightLevel(int level) {
+        mNightMode = NightMode.of(level);
+    }
+
+    /** Текущая ступень ночного режима. */
+    public int getAutoBrightLevel() {
+        return mNightMode.level;
+    }
+
     /** Текущий применённый множитель яркости (1.0 — без изменений). */
     public float getBrightness() {
         return mBrightness;
@@ -394,32 +399,34 @@ public final class BrightnessOverlayProcessor implements SurfaceProcessor,
             return;
         }
         mLastMeanLuma = luma;
+        final NightMode mode = mNightMode;
         // Сглаживаем: одиночный тёмный/светлый кадр (тень, фары) не должен менять усиление.
         mSmoothedLuma = mSmoothedLuma < 0
                 ? luma
                 : mSmoothedLuma + (luma - mSmoothedLuma) * AUTO_BRIGHT_SMOOTHING;
 
         // Гистерезис: включаемся только в заметной темноте, выключаемся с запасом.
-        if (!mBrightening && mSmoothedLuma < AUTO_BRIGHT_ON_Y) {
+        if (!mBrightening && mSmoothedLuma < mode.onY) {
             mBrightening = true;
-        } else if (mBrightening && mSmoothedLuma >= AUTO_BRIGHT_OFF_Y) {
+        } else if (mBrightening && mSmoothedLuma >= mode.offY) {
             mBrightening = false;
         }
 
         float target = 1.0f;
         if (mBrightening) {
-            float wanted = AUTO_BRIGHT_TARGET_Y / Math.max(mSmoothedLuma, 1f);
+            float wanted = mode.targetY / Math.max(mSmoothedLuma, 1f);
             // Только осветляем: усиление ниже 1.0 было бы затемнением кадра.
-            target = Math.min(AUTO_BRIGHT_MAX_GAIN, Math.max(1.0f, wanted));
+            target = Math.min(mode.maxGain, Math.max(1.0f, wanted));
         }
-        float step = target > mBrightness ? AUTO_BRIGHT_STEP_UP : AUTO_BRIGHT_STEP_DOWN;
+        float step = target > mBrightness ? mode.stepUp : mode.stepDown;
         mBrightness = approach(mBrightness, target, step);
 
         if (now - mLastLumaLogAt >= AUTO_BRIGHT_LOG_INTERVAL_MS) {
             mLastLumaLogAt = now;
             Log.i(TAG, "Яркость кадра YAVG=" + luma
                     + " (сглаж. " + Math.round(mSmoothedLuma) + ") → усиление " + mBrightness
-                    + (mBrightening ? " (осветление)" : ""));
+                    + " (ступень " + mode.level + ", до " + mode.maxGain + "×"
+                    + (mBrightening ? ", осветление" : "") + ")");
         }
     }
 

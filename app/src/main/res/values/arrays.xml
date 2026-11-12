@@ -28,6 +28,13 @@
         <item>@string/settings_gsensor_40</item>
     </string-array>
 
+    <string-array name="night_level_entries">
+        <item>@string/settings_night_level_soft</item>
+        <item>@string/settings_night_level_normal</item>
+        <item>@string/settings_night_level_strong</item>
+        <item>@string/settings_night_level_max</item>
+    </string-array>
+
     <string-array name="ring_entries">
         <item>@string/settings_ring_off</item>
         <item>@string/settings_ring_15</item>

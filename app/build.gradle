@@ -31,8 +31,8 @@ android {
         applicationId "com.example.dashcam"
         minSdk 24
         targetSdk targetSdkVersion
-        versionCode 48
-        versionName "1.47"
+        versionCode 49
+        versionName "1.48"
 
         // Ключ 2ГИС по умолчанию; в репозитории его нет (см. чтение local.properties выше).
         buildConfigField "String", "TWOGIS_KEY", "\"${twoGisKey}\""

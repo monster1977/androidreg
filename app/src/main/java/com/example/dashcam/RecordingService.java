@@ -533,6 +533,7 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
                 // Яркость измеряем и осветляем прямо в эффекте: отдельный поток анализа
                 // (ImageAnalysis) на MTK отнимал полосу и ронял разрешение записи.
                 effect.setAutoBrightEnabled(Prefs.autoBright(this));
+                effect.setAutoBrightLevel(Prefs.nightLevel(this));
             }
         }
 
@@ -587,6 +588,7 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
             // Уровень цифрового осветления живёт в эффекте; на свежем эффекте он уже задан.
             Log.i(TAG, "Камера привязана: автояркость "
                     + (Prefs.autoBright(this) ? "вкл" : "выкл")
+                    + (Prefs.autoBright(this) ? " (ступень " + Prefs.nightLevel(this) + ")" : "")
                     + ", эффект=" + (effect != null));
             return true;
         } catch (Exception e) {
@@ -890,6 +892,7 @@ public class RecordingService extends Service implements LifecycleOwner, Locatio
         // отпечаток настроек изменится, и ниже камера перепривяжется с новым эффектом.
         if (overlayEffect != null) {
             overlayEffect.setAutoBrightEnabled(Prefs.autoBright(this));
+            overlayEffect.setAutoBrightLevel(Prefs.nightLevel(this));
         }
         if (recording) {
             return;

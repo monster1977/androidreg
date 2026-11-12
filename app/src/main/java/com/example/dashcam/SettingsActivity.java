@@ -89,6 +89,7 @@ public class SettingsActivity extends AppCompatActivity {
     private MaterialSwitch switchAutoStart;
     private MaterialSwitch switchTimestamp;
     private MaterialSwitch switchAutoBright;
+    private Spinner spinnerNightLevel;
     private MaterialSwitch switchGps;
     private MaterialSwitch switchStationary;
     private Spinner spinnerStationary;
@@ -170,6 +171,13 @@ public class SettingsActivity extends AppCompatActivity {
         switchAutoStart.setChecked(Prefs.autoStart(this));
         switchTimestamp.setChecked(Prefs.timestamp(this));
         switchAutoBright.setChecked(Prefs.autoBright(this));
+        // Ступень ночного режима задаёт агрессивность цифрового осветления; без включённой
+        // автояркости настройка не действует, поэтому спиннер недоступен.
+        spinnerNightLevel = findViewById(R.id.spinnerNightLevel);
+        spinnerNightLevel.setSelection(Prefs.nightLevel(this));
+        spinnerNightLevel.setEnabled(Prefs.autoBright(this));
+        switchAutoBright.setOnCheckedChangeListener((button, checked) ->
+                spinnerNightLevel.setEnabled(checked));
         switchGps.setChecked(Prefs.gps(this));
         spinnerStationary = findViewById(R.id.spinnerStationary);
         spinnerStationary.setAdapter(adapter(STATIONARY_LABELS));
@@ -523,6 +531,7 @@ public class SettingsActivity extends AppCompatActivity {
         Prefs.setAutoStart(this, switchAutoStart.isChecked());
         Prefs.setTimestamp(this, switchTimestamp.isChecked());
         Prefs.setAutoBright(this, switchAutoBright.isChecked());
+        Prefs.setNightLevel(this, spinnerNightLevel.getSelectedItemPosition());
         Prefs.setGps(this, switchGps.isChecked());
         Prefs.setStationaryStop(this, switchStationary.isChecked());
         Prefs.setStationaryMinutes(this,

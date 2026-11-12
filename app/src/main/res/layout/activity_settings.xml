@@ -164,6 +164,27 @@
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp" />
 
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/settings_night_level"
+                android:textColor="@color/white"
+                android:textSize="15sp" />
+
+            <Spinner
+                android:id="@+id/spinnerNightLevel"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:entries="@array/night_level_entries" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_night_level_desc"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+
             <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/switchGps"
                 android:layout_width="match_parent"

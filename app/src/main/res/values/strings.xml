@@ -96,6 +96,12 @@
     <string name="settings_timestamp_desc">Метка вжигается в кадр, поэтому останется и в сохранённом файле.</string>
     <string name="settings_auto_bright">Автояркость в сумерках</string>
     <string name="settings_auto_bright_desc">Камера сама повышает экспозицию, когда кадр становится тёмным — вечернее видео будет светлее.</string>
+    <string name="settings_night_level">Сила ночного режима</string>
+    <string name="settings_night_level_desc">Насколько сильно осветлять тёмный кадр. Сильнее — светлее видео, но больше шума и «зерна».</string>
+    <string name="settings_night_level_soft">Мягкий — меньше шума</string>
+    <string name="settings_night_level_normal">Средний — как раньше</string>
+    <string name="settings_night_level_strong">Сильный</string>
+    <string name="settings_night_level_max">Максимальный — светлее всего</string>
     <string name="settings_gps">GPS-координаты и скорость</string>
     <string name="settings_gps_desc">Показываются на кадре вместе с меткой времени. Нужно разрешение на геолокацию.</string>
     <string name="settings_charge">Автозапись при подключении зарядки</string>
