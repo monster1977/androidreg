@@ -25,6 +25,10 @@ import androidx.core.app.NotificationCompat;
  * реализована как foreground-служба: система держит её процесс живым и перезапускает
  * после смерти (START_STICKY), а после перезагрузки или обновления приложения службу
  * поднимает {@link UnlockBootReceiver}.</p>
+ *
+ * <p>Кроме разблокировки служба слушает включение экрана ({@code ACTION_SCREEN_ON}):
+ * на телефоне с отключённым экраном блокировки кнопка питания сразу включает рабочий
+ * стол, и регистратор должен открыться сам.</p>
  */
 public class UnlockWatcherService extends Service {
 
@@ -67,7 +71,12 @@ public class UnlockWatcherService extends Service {
         unlockReceiver = new UnlockReceiver();
         // Регистрация вручную: регистрировать приёмник нужно в живом процессе,
         // а широковещание приходит от системы, поэтому экспорт не требуется.
-        registerReceiver(unlockReceiver, new IntentFilter(Intent.ACTION_USER_PRESENT));
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_USER_PRESENT);
+        // При отключённом экране блокировки USER_PRESENT может не приходить:
+        // кнопка питания просто включает экран, поэтому ловим и SCREEN_ON.
+        filter.addAction(Intent.ACTION_SCREEN_ON);
+        registerReceiver(unlockReceiver, filter);
     }
 
     @Override

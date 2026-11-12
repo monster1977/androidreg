@@ -1,6 +1,7 @@
 package com.example.dashcam;
 
 import android.Manifest;
+import android.app.KeyguardManager;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -16,7 +17,7 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
 /**
- * Открывает регистратор после разблокировки телефона.
+ * Открывает регистратор после разблокировки телефона и при включении экрана без блокировки.
  *
  * <p>Приёмник не объявлен в манифесте: начиная с Android 8 система не доставляет
  * implicit-широковещание {@code ACTION_USER_PRESENT} манифест-приёмникам приложения,
@@ -24,6 +25,10 @@ import androidx.core.content.ContextCompat;
  * у интента нет флага {@code FLAG_RECEIVER_INCLUDE_BACKGROUND}). Поэтому экземпляр этого
  * класса регистрируется динамически из {@link UnlockWatcherService}: пока служба жива,
  * широковещание приходит даже при свёрнутом приложении.</p>
+ *
+ * <p>{@code ACTION_SCREEN_ON} обрабатывается для телефонов с отключённым экраном блокировки:
+ * тогда нажатие кнопки питания сразу показывает последний экран, но регистратор должен
+ * выйти на передний план сам. Если блокировка включена, ждём {@code USER_PRESENT}.</p>
  *
  * <p>Запуск активности из фона Android 10+ разрешает только приложениям с доступом
  * «Поверх других приложений» ({@code SYSTEM_ALERT_WINDOW}). Без него вместо открытия
@@ -37,14 +42,28 @@ public class UnlockReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        if (intent == null || !Intent.ACTION_USER_PRESENT.equals(intent.getAction())) {
+        if (intent == null || intent.getAction() == null) {
             return;
         }
         if (!Prefs.autoOpenOnUnlock(context)) {
             return;
         }
-        Log.i(TAG, "Телефон разблокирован — открываем регистратор");
-        open(context);
+        String action = intent.getAction();
+        if (Intent.ACTION_USER_PRESENT.equals(action)) {
+            Log.i(TAG, "Телефон разблокирован — открываем регистратор");
+            open(context);
+            return;
+        }
+        if (Intent.ACTION_SCREEN_ON.equals(action)) {
+            KeyguardManager keyguard =
+                    (KeyguardManager) context.getSystemService(Context.KEYGUARD_SERVICE);
+            if (keyguard != null && keyguard.isKeyguardLocked()) {
+                // Блокировка ещё на экране — приложение откроется по USER_PRESENT.
+                return;
+            }
+            Log.i(TAG, "Экран включён без блокировки — открываем регистратор");
+            open(context);
+        }
     }
 
     /** Открывает главный экран либо, если система не разрешает, показывает подсказку. */
