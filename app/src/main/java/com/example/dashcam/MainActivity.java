@@ -294,6 +294,9 @@ public class MainActivity extends AppCompatActivity
         });
         navigationView.setNavigationItemSelectedListener(this::onMenuItemSelected);
         syncAutostartMenu();
+        // Если настройка включена, держим службу автооткрытия запущенной
+        // (например, после обновления приложения или если её выгрузила система).
+        UnlockWatcherService.sync(this);
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override

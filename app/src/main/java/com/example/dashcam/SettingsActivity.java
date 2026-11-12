@@ -10,8 +10,10 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
@@ -60,6 +62,23 @@ public class SettingsActivity extends AppCompatActivity {
     /** Пороги Г-сенсора — порядок совпадает с @array/gsensor_threshold_entries. */
     private static final float[] GSENSOR_THRESHOLD_VALUES = {1.5f, 2.5f, 4.0f};
 
+    /**
+     * Системные экраны «Автозапуск» популярных прошивок. На них автозапуск ограничивается
+     * отдельно от разрешений Android, и без включения приложения в списке оно не поднимается
+     * после перезагрузки (на Blackview приложение даже принудительно останавливается).
+     */
+    private static final String[] AUTOSTART_SETTINGS = {
+            "com.blackview.systemmanager/com.freeme.freemanager.autoboot.AutoStartMainActivity",
+            "com.miui.securitycenter/com.miui.permcenter.autostart.AutoStartManagementActivity",
+            "com.huawei.systemmanager/.startupmgr.ui.StartupNormalAppListActivity",
+            "com.huawei.systemmanager/com.huawei.systemmanager.optimize.process.ProtectActivity",
+            "com.coloros.safecenter/com.coloros.safecenter.permission.startup.StartupAppListActivity",
+            "com.oppo.safe/com.oppo.safe.permission.startup.StartupAppListActivity",
+            "com.vivo.permissionmanager/com.vivo.permissionmanager.activity.BgStartUpManagerActivity",
+            "com.iqoo.secure/com.iqoo.secure.ui.phoneoptimize.BgStartUpManager",
+            "com.samsung.android.lool/com.samsung.android.sm.ui.battery.BatteryActivity",
+    };
+
     private Spinner spinnerQuality;
     /** Качества, реально поддерживаемые текущей камерой (заполняется в onCreate). */
     private String[] qualityValues;
@@ -78,6 +97,7 @@ public class SettingsActivity extends AppCompatActivity {
     private TextView textGsensorInfo;
     private MaterialButton buttonLockAdmin;
     private MaterialSwitch switchCharge;
+    private MaterialSwitch switchUnlock;
     private MaterialSwitch switchSdCard;
     private TextView textSdCardInfo;
     private MaterialButton buttonPalmApp;
@@ -182,6 +202,14 @@ public class SettingsActivity extends AppCompatActivity {
         buttonLockAdmin.setOnClickListener(v -> enableLockAdmin());
         updateLockAdminButton();
         switchCharge.setChecked(Prefs.autoStartOnCharge(this));
+        switchUnlock = findViewById(R.id.switchUnlock);
+        switchUnlock.setChecked(Prefs.autoOpenOnUnlock(this));
+        switchUnlock.setOnCheckedChangeListener((button, checked) -> {
+            if (checked && !Settings.canDrawOverlays(this)) {
+                askOverlayPermission();
+            }
+        });
+        setupAutostartButton();
 
         // SD-карта: если её нет, переключатель недоступен и запись идёт во внутреннюю память.
         String sdVolume = StorageUtils.sdVolumeName(this);
@@ -203,6 +231,71 @@ public class SettingsActivity extends AppCompatActivity {
 
         // Прошивки часто блокируют фоновые запуски — даём быстрый доступ к исключениям батареи.
         findViewById(R.id.buttonBattery).setOnClickListener(v -> openBatterySettings());
+    }
+
+    /**
+     * Android 10+ не разрешает открывать активность из фона без «Поверх других приложений».
+     * Показываем объяснение и ведём в системные настройки; результат подхватит приёмник
+     * разблокировки — без разрешения он покажет уведомление вместо автозапуска.
+     */
+    private void askOverlayPermission() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.unlock_overlay_title)
+                .setMessage(R.string.unlock_overlay_message)
+                .setPositiveButton(R.string.unlock_overlay_grant, (dialog, which) -> {
+                    try {
+                        startActivity(new Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:" + getPackageName())));
+                    } catch (Exception e) {
+                        Toast.makeText(this, R.string.unlock_overlay_unavailable,
+                                Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    /**
+     * Кнопка «Системный автозапуск»: открывает вендорский список приложений, которым разрешён
+     * автозапуск. На прошивках без такого списка кнопку скрываем — иначе она выглядела бы
+     * сломанной.
+     */
+    private void setupAutostartButton() {
+        MaterialButton button = findViewById(R.id.buttonAutostart);
+        View description = findViewById(R.id.textAutostartDesc);
+        ComponentName target = findAutostartSettings();
+        if (target == null) {
+            button.setVisibility(View.GONE);
+            description.setVisibility(View.GONE);
+            return;
+        }
+        button.setOnClickListener(v -> {
+            try {
+                startActivity(new Intent().setComponent(target));
+            } catch (Exception e) {
+                Toast.makeText(this, R.string.vendor_autostart_unavailable, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /** Первый доступный системный экран автозапуска или {@code null}, если прошивка незнакома. */
+    private ComponentName findAutostartSettings() {
+        for (String flattened : AUTOSTART_SETTINGS) {
+            ComponentName component = ComponentName.unflattenFromString(flattened);
+            if (component == null) {
+                continue;
+            }
+            try {
+                ActivityInfo info = getPackageManager().getActivityInfo(component, 0);
+                if (info.exported) {
+                    return component;
+                }
+            } catch (Exception ignored) {
+                // Экрана нет на этой прошивке — пробуем следующий.
+            }
+        }
+        return null;
     }
 
     private void openBatterySettings() {
@@ -435,6 +528,9 @@ public class SettingsActivity extends AppCompatActivity {
         Prefs.setStationaryMinutes(this,
                 STATIONARY_VALUES[spinnerStationary.getSelectedItemPosition()]);
         Prefs.setAutoStartOnCharge(this, switchCharge.isChecked());
+        Prefs.setAutoOpenOnUnlock(this, switchUnlock.isChecked());
+        // Служба слежения за разблокировкой должна запуститься или остановиться сразу.
+        UnlockWatcherService.sync(this);
         boolean toSd = switchSdCard.isEnabled() && switchSdCard.isChecked();
         if (switchSdCard.isChecked() && !switchSdCard.isEnabled()) {
             Toast.makeText(this, R.string.sd_card_unavailable, Toast.LENGTH_SHORT).show();
@@ -479,7 +575,7 @@ public class SettingsActivity extends AppCompatActivity {
             needed.add(Manifest.permission.RECORD_AUDIO);
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                && switchCharge.isChecked()
+                && (switchCharge.isChecked() || switchUnlock.isChecked())
                 && !granted(Manifest.permission.POST_NOTIFICATIONS)) {
             // Без уведомления подсказка об автозаписи на Android 13+ не показывается (K6).
             needed.add(Manifest.permission.POST_NOTIFICATIONS);

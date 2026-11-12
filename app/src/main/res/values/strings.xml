@@ -100,6 +100,15 @@
     <string name="settings_gps_desc">Показываются на кадре вместе с меткой времени. Нужно разрешение на геолокацию.</string>
     <string name="settings_charge">Автозапись при подключении зарядки</string>
     <string name="settings_charge_desc">Запись начнётся, как только телефон подключится к питанию.</string>
+    <string name="settings_unlock">Открывать при разблокировке</string>
+    <string name="settings_unlock_desc">После разблокировки телефона приложение откроется само. Для этого в фоне работает служба с постоянным уведомлением. Android разрешает открывать приложение из фона только с доступом «Поверх других приложений»; без него придёт уведомление.</string>
+    <string name="unlock_overlay_title">Нужен доступ «Поверх других приложений»</string>
+    <string name="unlock_overlay_message">Android не даёт приложениям открываться из фона без этого разрешения. Разрешите доступ в системных настройках — и регистратор будет открываться сам после разблокировки.</string>
+    <string name="unlock_overlay_grant">Разрешить</string>
+    <string name="unlock_overlay_unavailable">Не удалось открыть настройки разрешения</string>
+    <string name="settings_vendor_autostart">Системный автозапуск</string>
+    <string name="settings_vendor_autostart_desc">На некоторых прошивках (Blackview, Xiaomi, Huawei и других) есть отдельный список приложений, которым разрешён автозапуск. Если приложение не открывается после перезагрузки, включите его в этом списке.</string>
+    <string name="vendor_autostart_unavailable">Не удалось открыть системные настройки автозапуска</string>
 
     <string name="settings_stationary">Останавливать запись при стоянке</string>
     <string name="settings_stationary_desc">Если координаты не меняются выбранное время, запись останавливается, а экран блокируется. Нужны геолокация и разрешение администратора устройства.</string>
@@ -130,6 +139,18 @@
     <string name="channel_power_desc">Предложение начать запись при подключении зарядки</string>
     <string name="power_notification_title">Питание подключено</string>
     <string name="power_notification_text">Нажмите, чтобы начать запись</string>
+
+    <!-- Уведомление после разблокировки (когда нет доступа «Поверх других приложений») -->
+    <string name="channel_unlock">Разблокировка телефона</string>
+    <string name="channel_unlock_desc">Предложение открыть регистратор после разблокировки</string>
+    <string name="unlock_notification_title">Открыть регистратор</string>
+    <string name="unlock_notification_text">Разрешите «Поверх других приложений», чтобы приложение открывалось само при разблокировке.</string>
+
+    <!-- Постоянное уведомление службы автооткрытия -->
+    <string name="channel_unlock_watch">Автозапуск при разблокировке</string>
+    <string name="channel_unlock_watch_desc">Служба, которая открывает регистратор после разблокировки телефона</string>
+    <string name="unlock_watch_title">Регистратор откроется при разблокировке</string>
+    <string name="unlock_watch_text">Служба работает в фоне. Нажмите, чтобы открыть приложение.</string>
 
     <!-- Диагностика на главном экране -->
     <string name="diagnostics_text">Метка: %1$s\nGPS: %2$s</string>

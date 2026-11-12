@@ -17,7 +17,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Служба автооткрытия поднимается после перезагрузки и обновления приложения. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Без «Поверх других приложений» Android 10+ не даёт открывать активность из фона. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -110,11 +115,32 @@
             android:exported="false"
             android:foregroundServiceType="camera|microphone" />
 
+        <!--
+            Автооткрытие после разблокировки. Обычный манифест-приёмник USER_PRESENT
+            бесполезен: Android 8+ не доставляет implicit-широковещание приложению в фоне
+            («Background execution not allowed»). Служба держит приёмник зарегистрированным
+            динамически, пока настройка включена.
+        -->
+        <service
+            android:name=".UnlockWatcherService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
         <receiver
             android:name=".PowerConnectionReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.ACTION_POWER_CONNECTED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- BOOT_COMPLETED и MY_PACKAGE_REPLACED — исключения, доставляются всегда. -->
+        <receiver
+            android:name=".UnlockBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 

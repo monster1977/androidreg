@@ -24,6 +24,8 @@ public final class Prefs {
     public static final String KEY_GPS = "gps";                    // координаты на видео
     public static final String KEY_AUTO_BRIGHT = "auto_bright";    // автояркость в сумерках
     public static final String KEY_AUTO_START_CHARGE = "auto_start_charge";
+    /** Открывать приложение при разблокировке телефона. */
+    public static final String KEY_AUTO_OPEN_ON_UNLOCK = "auto_open_on_unlock";
     public static final String KEY_LANDSCAPE_REVERSED = "landscape_reversed";
     public static final String KEY_CAMERA_MODE = "camera_mode";     // BACK | FRONT
     public static final String KEY_REAR_CAMERA_URL = "rear_camera_url";
@@ -179,6 +181,15 @@ public final class Prefs {
 
     public static void setAutoStartOnCharge(Context context, boolean value) {
         get(context).edit().putBoolean(KEY_AUTO_START_CHARGE, value).apply();
+    }
+
+    /** Открывать регистратор сразу после разблокировки телефона. */
+    public static boolean autoOpenOnUnlock(Context context) {
+        return get(context).getBoolean(KEY_AUTO_OPEN_ON_UNLOCK, false);
+    }
+
+    public static void setAutoOpenOnUnlock(Context context, boolean value) {
+        get(context).edit().putBoolean(KEY_AUTO_OPEN_ON_UNLOCK, value).apply();
     }
 
     /** true — обратный ландшафт: экран перевёрнут на 180°, камера и зарядка меняются местами. */
