@@ -10,7 +10,7 @@ import org.junit.Test;
 public class NightModeTest {
 
     @Test
-    public void defaultRepeatsAutoBrightOf146() {
+    public void defaultRepeatsAutoBrightOf144to148() {
         NightMode mode = NightMode.of(NightMode.DEFAULT);
         assertEquals(NightMode.NORMAL, NightMode.DEFAULT);
         assertEquals(70f, mode.targetY, 0.001f);
@@ -23,8 +23,16 @@ public class NightModeTest {
 
     @Test
     public void outOfRangeClampsToNearestLevel() {
-        assertSame(NightMode.of(NightMode.SOFT), NightMode.of(-5));
+        assertSame(NightMode.of(NightMode.MINIMAL), NightMode.of(-5));
         assertSame(NightMode.of(NightMode.MAXIMUM), NightMode.of(99));
+    }
+
+    @Test
+    public void sevenLevelsAreOffered() {
+        assertEquals(7, NightMode.COUNT);
+        for (int level = 0; level < NightMode.COUNT; level++) {
+            assertEquals(level, NightMode.of(level).level);
+        }
     }
 
     @Test
@@ -55,6 +63,7 @@ public class NightModeTest {
             assertTrue(mode.maxGain >= 1f);
             assertTrue(mode.stepUp > 0f);
             assertTrue(mode.stepDown > 0f);
+            assertTrue(mode.stepDown > mode.stepUp);
         }
     }
 }

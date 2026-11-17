@@ -51,7 +51,7 @@ public final class BrightnessOverlayEffect extends CameraEffect implements AutoC
         mProcessor.setAutoBrightEnabled(enabled);
     }
 
-    /** Ступень ночного режима: 0 — мягкий … 3 — максимальный (см. {@link NightMode}). */
+    /** Ступень ночного режима: 0 — минимальный … 6 — максимальный (см. {@link NightMode}). */
     public void setAutoBrightLevel(int level) {
         mProcessor.setAutoBrightLevel(level);
     }
